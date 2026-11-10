@@ -15,6 +15,7 @@ enum Role {
 
 enum OrderStatus {
   PENDING_PAYMENT
+  PAYMENT_FAILED
   PAID
   PREPARING
   READY
@@ -124,6 +125,8 @@ model Payment {
   status            PaymentStatus @default(PENDING)
   /// vnp_TxnRef gửi sang VNPay – duy nhất
   txnRef            String        @unique
+  /// Header Idempotency-Key của request tạo giao dịch – gửi lại cùng key không tạo giao dịch mới
+  idempotencyKey    String?       @unique
   vnpTransactionNo  String?
   responseCode      String?
   createdAt         DateTime      @default(now())
