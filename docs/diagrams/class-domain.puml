@@ -1,0 +1,185 @@
+@startuml class-domain
+' BrewLite - Class diagram muc domain (Task 2.3)
+' Nguon: docs/diagrams/class-domain.md
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam class {
+  BackgroundColor #FFF8EE
+  BorderColor #8A5A2B
+}
+skinparam enum {
+  BackgroundColor #EEF5FF
+  BorderColor #3A6EA5
+}
+
+package "Enum" {
+  enum Role {
+    CUSTOMER
+    STAFF
+    ADMIN
+  }
+  enum Size {
+    S
+    M
+    L
+  }
+  enum OrderStatus {
+    PENDING
+    PAID
+    PAYMENT_FAILED
+    PREPARING
+    READY
+    COMPLETED
+    CANCELLED
+  }
+  enum PaymentMethod {
+    E_WALLET
+    BANK_CARD
+  }
+  enum PaymentStatus {
+    SUCCESS
+    FAILED
+  }
+  enum LoyaltyType {
+    EARN
+    REDEEM
+    REVERSE
+  }
+  enum ReservationStatus {
+    RESERVED
+    CONSUMED
+    RELEASED
+  }
+}
+
+class User {
+  + id : Int
+  + email : String {unique}
+  + passwordHash : String
+  + role : Role
+  + loyaltyPoints : Int
+  + createdAt : DateTime
+}
+
+class Product {
+  + id : Int
+  + name : String
+  + category : String
+  + price : Int
+  + imageUrl : String
+  + stock : Int
+  + version : Int
+  + isActive : Boolean
+  + priceFor(size : Size, toppings : String[]) : Int
+}
+
+class Order {
+  + id : Int
+  + status : OrderStatus
+  + subtotal : Int
+  + discount : Int
+  + total : Int
+  + reservationExpiresAt : DateTime [0..1]
+  + createdAt : DateTime
+  + updatedAt : DateTime
+  + assertTransition(to : OrderStatus) : void
+  + canBeCancelledByCustomer() : Boolean
+}
+
+class OrderItem {
+  + id : Int
+  + size : Size
+  + toppings : String[]
+  + qty : Int
+  + unitPrice : Int
+  + lineTotal : Int
+}
+
+class Payment {
+  + id : Int
+  + idempotencyKey : String {unique}
+  + amount : Int
+  + method : PaymentMethod
+  + status : PaymentStatus
+  + createdAt : DateTime
+}
+
+class Promotion {
+  + code : String {id}
+  + percent : Int
+  + minOrderValue : Int
+  + usageLimit : Int [0..1]
+  + usedCount : Int
+  + active : Boolean
+  + startDate : DateTime [0..1]
+  + endDate : DateTime [0..1]
+  + isApplicable(subtotal : Int, now : DateTime) : Boolean
+}
+
+class LoyaltyTransaction {
+  + id : Int
+  + type : LoyaltyType
+  + points : Int
+  + reason : String
+  + createdAt : DateTime
+}
+
+package "Tồn kho nguyên liệu" {
+  class Ingredient {
+    + id : Int
+    + name : String {unique}
+    + unit : String
+    + stock : Decimal
+    + reservedQty : Decimal
+    + version : Int
+  }
+  class RecipeItem {
+    + size : Size
+    + amount : Decimal
+  }
+  class StockReservation {
+    + amount : Decimal
+    + status : ReservationStatus
+  }
+}
+
+User "1" -- "0..*" Order : đặt >
+Order "1" *-- "1..*" OrderItem : gồm >
+OrderItem "0..*" --> "1" Product : tham chiếu >
+Order "1" -- "0..*" Payment : được thanh toán bởi >
+Order "0..*" --> "0..1" Promotion : áp dụng >
+User "1" *-- "0..*" LoyaltyTransaction : sở hữu >
+LoyaltyTransaction "0..*" --> "0..1" Order : phát sinh từ >
+
+Product "1" *-- "0..*" RecipeItem : công thức >
+RecipeItem "0..*" --> "1" Ingredient : dùng >
+Order "1" *-- "0..*" StockReservation : giữ chỗ >
+StockReservation "0..*" --> "1" Ingredient : trên >
+
+User ..> Role
+Order ..> OrderStatus
+OrderItem ..> Size
+Payment ..> PaymentMethod
+Payment ..> PaymentStatus
+LoyaltyTransaction ..> LoyaltyType
+StockReservation ..> ReservationStatus
+
+note right of Order
+  total = subtotal - discount
+  Mọi thay đổi status đi qua assertTransition()
+  theo máy trạng thái FR-08.
+  COMPLETED, CANCELLED là trạng thái kết thúc.
+end note
+
+note bottom of Payment
+  Một Order có thể có nhiều Payment (thử lại sau
+  PAYMENT_FAILED) nhưng tối đa 1 Payment SUCCESS.
+  Gửi lại cùng idempotencyKey trả về Payment cũ.
+end note
+
+note left of LoyaltyTransaction
+  EARN: +1 điểm / 10.000đ khi Order chuyển PAID.
+  User.loyaltyPoints = tổng points các giao dịch.
+end note
+@enduml
