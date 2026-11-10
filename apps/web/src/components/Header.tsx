@@ -1,28 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Coffee, ShoppingBag, User } from "lucide-react";
-import { getStoredCart } from "@/utils/cart";
+import { getStoredCart, subscribeCart } from "@/utils/cart";
 
 interface HeaderProps {
   onOpenCart: () => void;
 }
 
 export default function Header({ onOpenCart }: HeaderProps) {
-  const [cartCount, setCartCount] = useState<number>(0);
-
-  const updateCount = () => {
-    const items = getStoredCart();
-    const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
-    setCartCount(totalQty);
-  };
-
-  useEffect(() => {
-    updateCount();
-    const handleCartUpdate = () => updateCount();
-    window.addEventListener("brewlite_cart_updated", handleCartUpdate);
-    return () => window.removeEventListener("brewlite_cart_updated", handleCartUpdate);
-  }, []);
+  const items = useSyncExternalStore(subscribeCart, getStoredCart, () => []);
+  const cartCount = items.reduce((sum, item) => sum + item.qty, 0);
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-amber-100 shadow-sm transition-all">
@@ -91,4 +79,3 @@ export default function Header({ onOpenCart }: HeaderProps) {
     </header>
   );
 }
-
