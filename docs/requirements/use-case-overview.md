@@ -12,7 +12,7 @@
 | [`scope-assumptions-risks.md`](scope-assumptions-risks.md) | Thái Tú | Đã merge (PR #7) | Phạm vi MVP / mở rộng, chỉ làm web, thanh toán mô phỏng Ví/Thẻ |
 | [`context-and-scope.md`](context-and-scope.md) | Anh Vũ | Đã merge (PR #10, #11) | Danh sách stakeholder → tác nhân |
 | [`use-case-order-payment.md`](use-case-order-payment.md) | Anh Vũ | Đã merge (PR #10) | UC-01 và tác nhân Payment Gateway |
-| `srs.md` (FR-05 → FR-08) | Minh Trí | PR #1, đã được duyệt, chưa merge | Đặt đơn, thanh toán, lịch sử, trạng thái, hủy đơn, vai trò nhân viên |
+| [`srs.md`](srs.md) (FR-05 → FR-08) | Minh Trí | Đã merge (PR #1) | Đặt đơn, thanh toán, lịch sử, trạng thái, hủy đơn, vai trò nhân viên |
 | `ssr.md` (FR-01 → FR-38) | Hữu Mẫn | Nhánh `Man`, chưa mở PR | Menu, chi tiết sản phẩm, giỏ hàng, xác thực |
 
 ## 1. Tác nhân
