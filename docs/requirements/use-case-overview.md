@@ -10,9 +10,9 @@
 | Tài liệu | Người viết | Trạng thái (10/11) | Dùng cho |
 |----------|-----------|--------------------|----------|
 | [`scope-assumptions-risks.md`](scope-assumptions-risks.md) | Thái Tú | Đã merge (PR #7) | Phạm vi MVP / mở rộng, chỉ làm web, thanh toán mô phỏng Ví/Thẻ |
-| `context-and-scope.md` | Anh Vũ | PR #10, chưa merge | Danh sách stakeholder → tác nhân |
-| `use-case-order-payment.md` | Anh Vũ | PR #10, chưa merge | UC-01 và tác nhân Payment Gateway |
-| `srs.md` (FR-05 → FR-08) | Minh Trí | PR #1, chưa merge | Đặt đơn, thanh toán, lịch sử, trạng thái, hủy đơn, vai trò nhân viên |
+| [`context-and-scope.md`](context-and-scope.md) | Anh Vũ | Đã merge (PR #10, #11) | Danh sách stakeholder → tác nhân |
+| [`use-case-order-payment.md`](use-case-order-payment.md) | Anh Vũ | Đã merge (PR #10) | UC-01 và tác nhân Payment Gateway |
+| `srs.md` (FR-05 → FR-08) | Minh Trí | PR #1, đã được duyệt, chưa merge | Đặt đơn, thanh toán, lịch sử, trạng thái, hủy đơn, vai trò nhân viên |
 | `ssr.md` (FR-01 → FR-38) | Hữu Mẫn | Nhánh `Man`, chưa mở PR | Menu, chi tiết sản phẩm, giỏ hàng, xác thực |
 
 ## 1. Tác nhân
@@ -49,7 +49,7 @@ Căn cứ phạm vi: tài liệu phạm vi xếp "Nhân viên/quản lý cập n
 và "Quản lý menu cho quản lý cửa hàng" vào phạm vi mở rộng. Căn cứ khách vãng lai: FR-17, FR-35 của
 Hữu Mẫn ghi menu, chi tiết và giỏ hàng dùng được khi chưa đăng nhập.
 
-UC-01 khớp mã và tên với đặc tả chi tiết của Anh Vũ (PR #10) và với mẫu ma trận truy vết của đề
+UC-01 khớp mã và tên với đặc tả chi tiết của Anh Vũ ([`use-case-order-payment.md`](use-case-order-payment.md)) và với mẫu ma trận truy vết của đề
 (`UC-01 Thanh toán`).
 
 ## 3. Quan hệ giữa các use-case
