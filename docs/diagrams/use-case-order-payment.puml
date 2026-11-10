@@ -1,0 +1,25 @@
+@startuml
+left to right direction
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+
+actor Customer
+actor "Payment Gateway" as PG
+
+rectangle "BrewLite System" {
+    usecase "Place Order and\nMake Payment" as UC01
+    usecase "Validate Cart and\nCheck Stock" as UC02
+    usecase "Create Order" as UC03
+    usecase "Process Payment" as UC04
+
+    UC01 ..> UC02 : <<include>>
+    UC01 ..> UC03 : <<include>>
+    UC01 ..> UC04 : <<include>>
+}
+
+Customer -- UC01
+PG -- UC04
+
+@enduml
