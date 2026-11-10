@@ -19,12 +19,13 @@
 | `Order` | Đơn hàng: trạng thái, tổng tiền tính ở server, lượng nguyên liệu đã trừ để hoàn kho khi hủy. | FR-05, FR-07, FR-08, UC-01, UC-07 → UC-09, UC-11 |
 | `OrderItem` | Một dòng trong đơn; lưu bản chụp tên món, size, topping, đơn giá tại thời điểm đặt. | FR-05, UC-01 |
 | `Payment` | Một giao dịch thanh toán qua VNPay sandbox, khóa duy nhất `txnRef`. | FR-06, UC-01 |
-| `Promotion` *(mở rộng)* | Mã giảm giá theo phần trăm. | FR-09 (đề xuất), UC-10 |
-| `LoyaltyTransaction` *(mở rộng)* | Lịch sử cộng/trừ điểm thưởng sau khi đơn `PAID`. | FR-09 (đề xuất) |
+| `Promotion` *(mở rộng)* | Mã giảm giá: mã, phần trăm giảm, hạn dùng, giới hạn và số lượt đã dùng. | FR-36 (SRS của Tuấn Vỹ), UC-10 |
+| `LoyaltyTransaction` *(mở rộng)* | Một lần cộng điểm thưởng khi đơn chuyển `PAID`. | FR-37 (SRS của Tuấn Vỹ); FR-06, FR-07 trong `srs.md` |
 
 `Promotion` và `LoyaltyTransaction` là hai lớp đề bài bắt buộc có trong class diagram. Theo
 [`scope-assumptions-risks.md`](../requirements/scope-assumptions-risks.md), đây là phạm vi mở rộng nên
 **chưa có trong `schema.prisma`**. Trên sơ đồ, hai lớp này tô xám, gắn nhãn `<<mở rộng>>`, quan hệ vẽ nét đứt.
+Thuộc tính của hai lớp này chỉ lấy từ yêu cầu của Assignment 2: FR-36, FR-37 trong SRS của Tuấn Vỹ (nhánh `docs-srs-only`, chờ merge) và mục cộng điểm thưởng ở FR-06, FR-07 của `srs.md`. Khi SRS được merge với số khác, cột yêu cầu sẽ cập nhật theo.
 
 ## 2. Quan hệ và multiplicity
 
@@ -39,7 +40,7 @@
 | Order ⇢ Ingredient | phụ thuộc | `ingredientUsage` lưu `{ ingredientId: lượng đã trừ }` để hoàn kho. |
 | Order ⇢ Promotion *(mở rộng)* | 0..* – 0..1 | Mỗi đơn áp tối đa một mã. |
 | User ◆ LoyaltyTransaction *(mở rộng)* | 1 – 0..* | Điểm hiện có bằng tổng `points`. |
-| LoyaltyTransaction ⇢ Order *(mở rộng)* | 0..* – 0..1 | Điểm `EARN` gắn với đơn đã `PAID`; `REVERSE` khi hoàn điểm. |
+| LoyaltyTransaction ⇢ Order *(mở rộng)* | 0..1 – 1 | Mỗi đơn `PAID` sinh tối đa một giao dịch cộng điểm; đơn bị hủy không sinh điểm (FR-37). |
 
 `Size` không có quan hệ khóa ngoại tới `OrderItem`: đơn lưu `sizeName` dạng bản chụp.
 
@@ -50,7 +51,6 @@
 | `OrderStatus` | `PENDING_PAYMENT`, `PAID`, `PREPARING`, `READY`, `COMPLETED`, `CANCELLED` | Chuyển trạng thái theo ghi chú trên sơ đồ. `COMPLETED`, `CANCELLED` là trạng thái kết thúc. |
 | `PaymentStatus` | `PENDING`, `SUCCESS`, `FAILED` | Chỉ giao dịch `PENDING` mới được cập nhật kết quả. |
 | `Role` | `CUSTOMER`, `STAFF` | `STAFF` xem mọi đơn và đẩy trạng thái pha chế. |
-| `LoyaltyType` *(mở rộng)* | `EARN`, `REVERSE` | |
 
 Chuyển trạng thái đơn trong code:
 - `PENDING_PAYMENT → PAID`: VNPay báo thành công (`payments.service.ts`).

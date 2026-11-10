@@ -33,10 +33,6 @@ package "Enum" {
     SUCCESS
     FAILED
   }
-  enum LoyaltyType <<mở rộng>> {
-    EARN
-    REVERSE
-  }
 }
 
 class User {
@@ -118,17 +114,13 @@ package "Đơn hàng và thanh toán" {
 package "Mở rộng (chưa có trong schema)" {
   class Promotion <<mở rộng>> {
     + code : String {unique}
-    + percent : Int
-    + minOrderValue : Int
-    + usageLimit : Int [0..1]
+    + discountPercent : Int
+    + expiresAt : DateTime
+    + usageLimit : Int
     + usedCount : Int
-    + active : Boolean
-    + startDate : DateTime [0..1]
-    + endDate : DateTime [0..1]
   }
   class LoyaltyTransaction <<mở rộng>> {
     + id : Int
-    + type : LoyaltyType
     + points : Int
     + createdAt : DateTime
   }
@@ -146,7 +138,17 @@ Order ..> Ingredient : ingredientUsage\n(lượng đã trừ kho)
 
 Order "0..*" ..> "0..1" Promotion : áp dụng >
 User "1" *.. "0..*" LoyaltyTransaction : sở hữu >
-LoyaltyTransaction "0..*" ..> "0..1" Order : phát sinh từ >
+LoyaltyTransaction "0..1" ..> "1" Order : phát sinh từ >
+
+note bottom of Promotion
+  FR-36: mã hết hạn, sai hoặc vượt usageLimit bị từ chối;
+  giảm giá không làm tổng âm.
+end note
+
+note bottom of LoyaltyTransaction
+  FR-37: mỗi đơn PAID sinh 1 giao dịch cộng điểm
+  (ví dụ 1 điểm / 10.000đ); đơn bị hủy không sinh điểm.
+end note
 
 note right of Order
   totalAmount = tổng OrderItem.lineTotal, tính lại ở server.
