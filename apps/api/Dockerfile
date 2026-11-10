@@ -13,6 +13,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/prisma ./prisma
 COPY package*.json ./
 EXPOSE 3001
-CMD ["node", "dist/main.js"]
+# Áp migration (tạo bảng) rồi mới chạy API; AUTO_SEED sẽ seed dữ liệu mẫu sau đó
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
