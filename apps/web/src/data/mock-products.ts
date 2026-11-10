@@ -1,0 +1,130 @@
+import { Product, SizeOption, Topping } from "@/types/product";
+
+export const SIZE_OPTIONS: SizeOption[] = [
+  { size: "S", name: "Nhỏ (S)", extraPrice: 0 },
+  { size: "M", name: "Vừa (M)", extraPrice: 5000 },
+  { size: "L", name: "Lớn (L)", extraPrice: 10000 },
+];
+
+export const AVAILABLE_TOPPINGS: Topping[] = [
+  { id: "top-1", name: "Trân châu trắng", price: 8000 },
+  { id: "top-2", name: "Thạch cà phê giòn", price: 8000 },
+  { id: "top-3", name: "Kem Cheese Macchiato", price: 10000 },
+  { id: "top-4", name: "Thêm 1 Shot Espresso", price: 12000 },
+];
+
+export const CATEGORIES = [
+  { id: "all", name: "Tất cả đồ uống" },
+  { id: "traditional", name: "Cà phê Truyền thống" },
+  { id: "coldbrew", name: "Cold Brew Ủ Lạnh" },
+  { id: "tea", name: "Trà Trái Cây & Macchiato" },
+  { id: "espresso", name: "Espresso Bar" },
+];
+
+export const MOCK_PRODUCTS: Product[] = [
+  {
+    id: "prod-01",
+    name: "Cà phê Muối BrewLite",
+    categoryId: "traditional",
+    categoryName: "Cà phê Truyền thống",
+    description: "Cà phê Robusta Đắk Lắk nguyên chất kết hợp lớp kem muối béo ngậy đặc trưng tạo nên hương vị đậm đà khó quên.",
+    basePrice: 29000,
+    stock: 25,
+    imageUrl: "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&auto=format&fit=crop&q=80",
+    isPopular: true,
+  },
+  {
+    id: "prod-02",
+    name: "Bạc Xỉu Sài Gòn",
+    categoryId: "traditional",
+    categoryName: "Cà phê Truyền thống",
+    description: "Hòa quyện tinh tế giữa sữa đặc ngọt dịu, sữa tươi thanh mát và chút thơm nồng nàn của cà phê phin.",
+    basePrice: 28000,
+    stock: 40,
+    imageUrl: "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=600&auto=format&fit=crop&q=80",
+    isPopular: true,
+  },
+  {
+    id: "prod-03",
+    name: "Cà phê Đen Phin Đậm Vị",
+    categoryId: "traditional",
+    categoryName: "Cà phê Truyền thống",
+    description: "100% hạt Robusta rang mộc thơm nồng, đậm đà đúng gu cà phê truyền thống Việt Nam.",
+    basePrice: 22000,
+    stock: 50,
+    imageUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "prod-04",
+    name: "Cold Brew Cam Sả Tươi",
+    categoryId: "coldbrew",
+    categoryName: "Cold Brew Ủ Lạnh",
+    description: "Cà phê Arabica Cầu Đất ủ lạnh suốt 16 giờ, kết hợp lát cam vàng và sả tươi thanh mát, sảng khoái ngày hè.",
+    basePrice: 38000,
+    stock: 18,
+    imageUrl: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=600&auto=format&fit=crop&q=80",
+    isPopular: true,
+  },
+  {
+    id: "prod-05",
+    name: "Cold Brew Truyền Thống",
+    categoryId: "coldbrew",
+    categoryName: "Cold Brew Ủ Lạnh",
+    description: "Hương vị cà phê nguyên bản ủ lạnh thanh thoát, hậu vị ngọt tự nhiên không chua gắt.",
+    basePrice: 35000,
+    stock: 20,
+    imageUrl: "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "prod-06",
+    name: "Trà Đào Cam Sả Mọng Nước",
+    categoryId: "tea",
+    categoryName: "Trà Trái Cây & Macchiato",
+    description: "Cốt trà lài thơm ngát quyện cùng đào miếng giòn ngọt, cam vàng mọng nước và hương sả thơm lừng.",
+    basePrice: 35000,
+    stock: 30,
+    imageUrl: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&auto=format&fit=crop&q=80",
+    isPopular: true,
+  },
+  {
+    id: "prod-07",
+    name: "Trà Ô Long Kem Cheese",
+    categoryId: "tea",
+    categoryName: "Trà Trái Cây & Macchiato",
+    description: "Lá trà ô long tuyển chọn thơm nồng đậm, phủ lớp kem phô mai béo mặn sánh mịn bề mặt.",
+    basePrice: 36000,
+    stock: 15,
+    imageUrl: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "prod-08",
+    name: "Caramel Macchiato Đá",
+    categoryId: "espresso",
+    categoryName: "Espresso Bar",
+    description: "Cà phê Espresso sóng sánh trên nền sữa tươi béo thơm, phủ sốt caramel ngọt dịu quyến rũ.",
+    basePrice: 42000,
+    stock: 12,
+    imageUrl: "https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "prod-09",
+    name: "Americano Đá Mát Lạnh",
+    categoryId: "espresso",
+    categoryName: "Espresso Bar",
+    description: "Double shot Espresso kết hợp nước khoáng tinh khiết, mang lại năng lượng tỉnh táo tức thì.",
+    basePrice: 30000,
+    stock: 35,
+    imageUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "prod-10",
+    name: "Trà Sữa Oolong Nướng (Tạm hết)",
+    categoryId: "tea",
+    categoryName: "Trà Trái Cây & Macchiato",
+    description: "Trà oolong sao nướng đậm vị khói kết hợp sữa béo ngậy hảo hạng.",
+    basePrice: 35000,
+    stock: 0, // Out of stock example to test FR-01 condition
+    imageUrl: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=600&auto=format&fit=crop&q=80",
+  },
+];
+
