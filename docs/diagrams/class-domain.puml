@@ -148,11 +148,6 @@ Order "0..*" ..> "0..1" Promotion : áp dụng >
 User "1" *.. "0..*" LoyaltyTransaction : sở hữu >
 LoyaltyTransaction "0..*" ..> "0..1" Order : phát sinh từ >
 
-User ..> Role
-Order ..> OrderStatus
-Payment ..> PaymentStatus
-LoyaltyTransaction ..> LoyaltyType
-
 note right of Order
   totalAmount = tổng OrderItem.lineTotal, tính lại ở server.
   Tạo đơn: khóa Ingredient, trừ kho, status = PENDING_PAYMENT.
