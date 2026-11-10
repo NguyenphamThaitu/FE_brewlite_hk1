@@ -66,3 +66,7 @@ Vì vậy, BrewLite được phát triển nhằm cải thiện trải nghiệm 
 
 | Nhóm phát triển (Development Team) | Nhóm chịu trách nhiệm xây dựng và bảo trì hệ thống BrewLite. | Nắm rõ yêu cầu, triển khai chức năng, kiểm thử và đảm bảo chất lượng phần mềm. |
 
+| Giảng viên (Instructor) | Người đưa ra yêu cầu bài tập và đánh giá kết quả thực hiện dự án. | Đảm bảo hệ thống đáp ứng yêu cầu bài tập, đánh giá tài liệu và sản phẩm của nhóm. |
+
+| Cổng thanh toán mô phỏng (Mock Payment Gateway) | Hệ thống bên ngoài hỗ trợ xử lý các giao dịch thanh toán mô phỏng. | Tiếp nhận yêu cầu thanh toán và trả về kết quả giao dịch thành công hoặc thất bại. |
+
