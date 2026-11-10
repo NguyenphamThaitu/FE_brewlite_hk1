@@ -17,13 +17,13 @@ export default function ProductDetailModal({
   onClose,
   onAddedSuccess,
 }: ProductDetailModalProps) {
-  if (!product) return null;
-
   const [selectedSize, setSelectedSize] = useState<ProductSize>("S");
   const [selectedToppings, setSelectedToppings] = useState<Topping[]>([]);
   const [note, setNote] = useState<string>("");
   const [qty, setQty] = useState<number>(1);
   const [isAdding, setIsAdding] = useState<boolean>(false);
+
+  if (!product) return null;
 
   // Size details
   const currentSizeOption =

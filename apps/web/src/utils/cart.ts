@@ -82,3 +82,13 @@ export const clearCart = (): void => {
   window.dispatchEvent(new Event("brewlite_cart_updated"));
 };
 
+export const subscribeCart = (callback: () => void): (() => void) => {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("brewlite_cart_updated", callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener("brewlite_cart_updated", callback);
+    window.removeEventListener("storage", callback);
+  };
+};
+

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CartItem } from "@/types/product";
-import { getStoredCart, updateCartQty, removeFromCart, clearCart } from "@/utils/cart";
+import { useSyncExternalStore } from "react";
+import { getStoredCart, subscribeCart, updateCartQty, removeFromCart, clearCart } from "@/utils/cart";
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
 
 interface CartDrawerProps {
@@ -12,18 +11,7 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
-  const [items, setItems] = useState<CartItem[]>([]);
-
-  const refreshCart = () => {
-    setItems(getStoredCart());
-  };
-
-  useEffect(() => {
-    refreshCart();
-    const handleUpdate = () => refreshCart();
-    window.addEventListener("brewlite_cart_updated", handleUpdate);
-    return () => window.removeEventListener("brewlite_cart_updated", handleUpdate);
-  }, [isOpen]);
+  const items = useSyncExternalStore(subscribeCart, getStoredCart, () => []);
 
   if (!isOpen) return null;
 
@@ -198,4 +186,3 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     </div>
   );
 }
-
