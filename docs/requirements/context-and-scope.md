@@ -1,8 +1,8 @@
-\# 1. Vấn đề nghiệp vụ (Business Problem)
+# 1. Vấn đề nghiệp vụ (Business Problem)
 
 
 
-\## 1.1. Bối cảnh nghiệp vụ
+## 1.1. Bối cảnh nghiệp vụ
 
 
 
@@ -18,7 +18,7 @@ BrewLite được xây dựng nhằm giải quyết những vấn đề trên th
 
 
 
-\## 1.2. Mô tả vấn đề nghiệp vụ
+## 1.2. Mô tả vấn đề nghiệp vụ
 
 
 
@@ -42,11 +42,11 @@ Vì vậy, BrewLite được phát triển nhằm cải thiện trải nghiệm 
 
 
 
-\# 2. Xác định các bên liên quan (Stakeholder Identification)
+# 2. Xác định các bên liên quan (Stakeholder Identification)
 
 
 
-\## 2.1. Bảng các bên liên quan
+## 2.1. Bảng các bên liên quan
 
 
 
