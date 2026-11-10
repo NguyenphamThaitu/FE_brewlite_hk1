@@ -60,3 +60,4 @@ describe("ProductCard Component", () => {
     expect(handleSelect).not.toHaveBeenCalled();
   });
 });
+
