@@ -35,7 +35,7 @@ khi tạo đơn thất bại thì không để lại đơn dở dang hay kho b�
   chưa có cơ chế tự hủy đơn quá hạn; nếu cần, thêm job hủy đơn `PENDING_PAYMENT` quá 15 phút (bằng
   hạn link VNPay).
 - **Khác với tài liệu hiện tại:** SRS FR-05 và góp ý trên PR #1 mô tả tồn kho theo
-  `Product.stock`; Assignment 1 đề xuất optimistic locking. Nhóm cần chốt và cập nhật SRS.
+  `Product.stock`. Nhóm cần chốt và cập nhật SRS.
 
 ## Phương án đã cân nhắc
 

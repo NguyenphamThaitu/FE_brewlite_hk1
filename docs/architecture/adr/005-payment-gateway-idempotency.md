@@ -49,6 +49,6 @@ cổng thanh toán gọi lại kết quả nhiều lần, hệ thống không đ
 
 ## Phương án đã cân nhắc
 
-- **Mock gateway tự viết + `Idempotency-Key`** (theo SRS và Assignment 1): đơn giản, test được
+- **Mock gateway tự viết + `Idempotency-Key`** (theo SRS FR-06): đơn giản, test được
   không cần mạng, đúng chữ "Ví/Thẻ mô phỏng" của đề; nhưng không có ký số và callback như cổng thật.
 - **Chỉ chặn bấm lặp ở frontend:** không đủ, vì request và callback có thể lặp ở tầng mạng.
