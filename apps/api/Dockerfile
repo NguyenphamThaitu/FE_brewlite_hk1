@@ -1,20 +1,23 @@
 # ---- Giai đoạn 1: build ----
-FROM node:20-alpine AS build
+FROM node:22-slim AS build
 WORKDIR /app
+# Prisma cần thư viện openssl
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Lệnh build gồm: prisma generate rồi nest build
 RUN npm run build
-RUN npm prune --omit=dev
 
 # ---- Giai đoạn 2: chạy ----
-FROM node:20-alpine
+FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY package*.json ./
 EXPOSE 3001
-# Áp migration (tạo bảng) rồi mới chạy API; AUTO_SEED sẽ seed dữ liệu mẫu sau đó
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# start:prod = prisma migrate deploy rồi khởi động API
+CMD ["npm", "run", "start:prod"]
