@@ -14,9 +14,9 @@ skinparam usecase {
 
 actor "Khách vãng lai" as Guest
 actor "Khách hàng\n(đã đăng nhập)" as Customer
-actor "Nhân viên quầy\n(STAFF)" as Staff
+actor "Nhân viên quầy\n(thu ngân, pha chế)" as Staff
 actor "Quản lý cửa hàng" as Manager
-actor "Cổng thanh toán\n(VNPay sandbox)" as Pay <<system>>
+actor "Payment Gateway\n(mô phỏng Ví/Thẻ)" as Pay <<system>>
 
 Customer -|> Guest
 Manager -|> Staff
@@ -32,12 +32,12 @@ rectangle "BrewLite (web)" {
     usecase "Xác thực JWT" as AUTH
     usecase "UC-07 Xem lịch sử và\nchi tiết đơn" as UC07
     usecase "UC-08 Theo dõi\ntrạng thái đơn" as UC08
-    usecase "UC-09 Hủy đơn\nchưa thanh toán" as UC09
-    usecase "UC-11 Xem và cập nhật\ntrạng thái pha chế" as UC11
+    usecase "UC-09 Hủy đơn" as UC09
+    usecase "UC-11 Cập nhật\ntrạng thái đơn" as UC11
   }
   package "Mở rộng" {
     usecase "UC-10 Áp mã khuyến mãi" as UC10 <<mở rộng>>
-    usecase "UC-12 Quản lý menu\nvà khuyến mãi" as UC12 <<mở rộng>>
+    usecase "UC-12 Quản lý menu" as UC12 <<mở rộng>>
   }
 }
 
@@ -65,7 +65,7 @@ Manager --> UC12
 
 note bottom of UC01
   Use-case trọng tâm (Task 1.3).
-  Tạo đơn PENDING_PAYMENT và trừ kho trong một transaction,
-  chuyển sang VNPay, nhận kết quả: PAID hoặc hủy đơn và hoàn kho.
+  Đặc tả chi tiết và sơ đồ riêng:
+  docs/requirements/use-case-order-payment.md
 end note
 @enduml
