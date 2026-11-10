@@ -1,0 +1,69 @@
+@startuml usecase-overview
+' BrewLite - So do use-case tong quat (Task 1.2)
+' Nguon: docs/requirements/use-case-overview.md
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #FFF8EE
+  BorderColor #8A5A2B
+}
+skinparam shadowing false
+
+actor "Khách vãng lai" as Guest
+actor "Khách hàng\n(đã đăng nhập)" as Customer
+actor "Nhân viên quầy\n(Barista)" as Staff
+actor "Quản lý cửa hàng" as Manager
+actor "Payment Service\n(mô phỏng Ví/Thẻ)" as Pay <<system>>
+
+Customer -|> Guest
+
+rectangle "BrewLite" {
+  package "MVP" {
+    usecase "UC-02 Xem menu" as UC02
+    usecase "UC-03 Xem chi tiết &\nchọn size/topping" as UC03
+    usecase "UC-04 Quản lý giỏ hàng" as UC04
+    usecase "UC-05 Đăng ký" as UC05
+    usecase "UC-06 Đăng nhập" as UC06
+    usecase "UC-01 Đặt và thanh toán\nđơn hàng" as UC01
+    usecase "Xác thực JWT" as AUTH
+    usecase "UC-10 Áp mã khuyến mãi" as UC10
+    usecase "UC-07 Xem lịch sử &\nchi tiết đơn" as UC07
+    usecase "UC-08 Theo dõi trạng thái đơn" as UC08
+    usecase "UC-09 Hủy đơn" as UC09
+  }
+  package "Mở rộng (ngoài MVP)" {
+    usecase "UC-11 Cập nhật trạng thái\npha chế" as UC11
+    usecase "UC-12 Quản lý sản phẩm,\nkhuyến mãi, tồn kho" as UC12
+  }
+}
+
+Guest --> UC02
+Guest --> UC03
+Guest --> UC04
+Guest --> UC05
+Guest --> UC06
+
+Customer --> UC01
+Customer --> UC07
+Customer --> UC08
+Customer --> UC09
+
+UC01 --> Pay
+
+UC01 ..> AUTH : <<include>>
+UC07 ..> AUTH : <<include>>
+UC09 ..> AUTH : <<include>>
+UC10 ..> UC01 : <<extend>>
+UC08 ..> UC07 : <<extend>>
+
+Staff --> UC11
+Manager --> UC12
+Manager -|> Staff
+
+note bottom of UC01
+  Use-case trọng tâm (Task 1.3).
+  Bao gồm tạo đơn PENDING, giữ chỗ tồn kho,
+  thanh toán idempotent, cập nhật PAID/PAYMENT_FAILED.
+end note
+@enduml
