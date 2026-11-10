@@ -21,8 +21,7 @@ Tài liệu này quy định chiến lược nhánh, pull request, quy ước co
 | `refactor` | Đổi cấu trúc, không đổi hành vi | `refactor/order-state` |
 
 - Mỗi nhánh chỉ giải quyết một hạng mục trong bảng phân công/backlog và nên sống dưới 2 ngày.
-- Ngoại lệ: thành viên làm nhiều hạng mục tài liệu nhỏ có thể dùng nhánh cá nhân
-  `<github-user>/<tên>` (ví dụ `Kenkra9999/quach-van-truong`), nhưng mỗi hạng mục phải là một
+- Một nhánh gom nhiều hạng mục tài liệu nhỏ của cùng một người thì mỗi hạng mục phải là một
   commit riêng có `scope` ghi rõ task (`docs(task-2): ...`) để review và truy vết.
 - Không sửa tệp thuộc phần việc của người khác trên nhánh của mình; góp ý qua review PR.
 - Xóa nhánh sau khi merge.
