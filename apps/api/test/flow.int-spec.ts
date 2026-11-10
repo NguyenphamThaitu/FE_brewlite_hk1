@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { execSync } from 'child_process';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { sign } from '../src/payments/vnpay';
 
@@ -47,7 +48,9 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
     carts.set(t, [...(carts.get(t) ?? []), body]);
   };
   const placeOrder = (t: string, items: any[] = carts.get(t) ?? []) => http().post('/orders').set(auth(t)).send({ items });
-  const pay = async (t: string, orderId: number) => (await http().post('/payments/vnpay').set(auth(t)).send({ orderId }).expect(200)).body;
+  // Mỗi lượt bấm "Thanh toán" frontend sinh một Idempotency-Key mới
+  const key = () => ({ 'Idempotency-Key': randomUUID() });
+  const pay = async (t: string, orderId: number) => (await http().post('/payments/vnpay').set(auth(t)).set(key()).send({ orderId }).expect(200)).body;
   const txnRefOf = async (orderId: number) => (await prisma.payment.findFirstOrThrow({ where: { orderId }, orderBy: { id: 'desc' } })).txnRef;
 
   it('GET /health', async () => {
@@ -207,7 +210,7 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
     it('không thanh toán đơn của người khác', async () => {
       const { orderId } = await newOrder('pay2@test.vn');
       const other = await register('pay2x@test.vn');
-      await http().post('/payments/vnpay').set(auth(other)).send({ orderId }).expect(404);
+      await http().post('/payments/vnpay').set(auth(other)).set(key()).send({ orderId }).expect(404);
     });
 
     it('IPN thành công → đơn PAID; gọi lại không xử lý lần 2', async () => {
@@ -217,7 +220,7 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       expect((await http().get('/payments/vnpay/ipn').query(vnp(ref, total)).expect(200)).body).toEqual({ RspCode: '00', Message: 'Confirm Success' });
       expect((await http().get(`/orders/${orderId}`).set(auth(t))).body.status).toBe('PAID');
       expect((await http().get('/payments/vnpay/ipn').query(vnp(ref, total)).expect(200)).body.RspCode).toBe('02');
-      await http().post('/payments/vnpay').set(auth(t)).send({ orderId }).expect(409); // đã thanh toán
+      await http().post('/payments/vnpay').set(auth(t)).set(key()).send({ orderId }).expect(409); // đã thanh toán
       const ret = await http().get('/payments/vnpay/return').query(vnp(ref, total)).expect(200);
       expect(ret.body).toMatchObject({ success: true, orderId });
     });
@@ -233,17 +236,18 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       expect((await http().get(`/orders/${orderId}`).set(auth(t))).body.status).toBe('PENDING_PAYMENT');
     });
 
-    it('thanh toán thất bại → đơn bị hủy và hoàn lại nguyên liệu', async () => {
+    it('thanh toán thất bại → đơn PAYMENT_FAILED, giữ kho để thanh toán lại', async () => {
       const { t, orderId, total } = await newOrder('pay5@test.vn');
       const coffeeAfterOrder = await stockOf('Cà phê hạt');
       await pay(t, orderId);
       const ref = await txnRefOf(orderId);
       await http().get('/payments/vnpay/ipn').query(vnp(ref, total, '24')).expect(200); // 24 = khách hủy giao dịch
-      expect((await http().get(`/orders/${orderId}`).set(auth(t))).body.status).toBe('CANCELLED');
-      expect(await stockOf('Cà phê hạt')).toBe(coffeeAfterOrder + 18 * 2);
-      // gọi IPN thất bại lần nữa không hoàn kho 2 lần
-      await http().get('/payments/vnpay/ipn').query(vnp(ref, total, '24')).expect(200);
-      expect(await stockOf('Cà phê hạt')).toBe(coffeeAfterOrder + 18 * 2);
+      expect((await http().get(`/orders/${orderId}`).set(auth(t))).body.status).toBe('PAYMENT_FAILED');
+      expect(await stockOf('Cà phê hạt')).toBe(coffeeAfterOrder); // chưa hoàn kho: đơn vẫn chờ thanh toán lại
+      // gọi IPN thất bại lần nữa không xử lý lần 2
+      expect((await http().get('/payments/vnpay/ipn').query(vnp(ref, total, '24')).expect(200)).body.RspCode).toBe('02');
+      const ret = await http().get('/payments/vnpay/return').query(vnp(ref, total, '24')).expect(200);
+      expect(ret.body).toMatchObject({ success: false, orderId, message: 'Thanh toán thất bại, bạn có thể thanh toán lại hoặc hủy đơn' });
     });
 
     it('khách hủy đơn chưa thanh toán → hoàn kho; không hủy được đơn đã thanh toán', async () => {
@@ -257,6 +261,108 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       await pay(paid.t, paid.orderId);
       await http().get('/payments/vnpay/ipn').query(vnp(await txnRefOf(paid.orderId), paid.total)).expect(200);
       await http().post(`/orders/${paid.orderId}/cancel`).set(auth(paid.t)).expect(409);
+    });
+
+    it('thanh toán lại sau PAYMENT_FAILED: tạo giao dịch mới, thành công → PAID, kho không bị trừ thêm', async () => {
+      const { t, orderId, total } = await newOrder('retry1@test.vn');
+      const coffeeAfterOrder = await stockOf('Cà phê hạt');
+      const first = await pay(t, orderId);
+      await http().get('/payments/vnpay/ipn').query(vnp(await txnRefOf(orderId), total, '51')).expect(200); // 51 = không đủ số dư
+      expect((await http().get(`/orders/${orderId}`).set(auth(t))).body.status).toBe('PAYMENT_FAILED');
+
+      const second = await pay(t, orderId); // key mới cho lượt thanh toán lại
+      expect(second.paymentId).not.toBe(first.paymentId);
+      expect(second.paymentUrl).toContain('vnp_SecureHash=');
+      await http().get('/payments/vnpay/ipn').query(vnp(await txnRefOf(orderId), total)).expect(200);
+      expect((await http().get(`/orders/${orderId}`).set(auth(t))).body.status).toBe('PAID');
+      expect(await prisma.payment.count({ where: { orderId } })).toBe(2);
+      expect(await prisma.payment.count({ where: { orderId, status: 'SUCCESS' } })).toBe(1);
+      expect(await stockOf('Cà phê hạt')).toBe(coffeeAfterOrder);
+    });
+
+    it('khách hủy đơn PAYMENT_FAILED → CANCELLED, hoàn kho đúng 1 lần', async () => {
+      const { t, orderId, total } = await newOrder('retry2@test.vn');
+      const coffeeAfterOrder = await stockOf('Cà phê hạt');
+      await pay(t, orderId);
+      await http().get('/payments/vnpay/ipn').query(vnp(await txnRefOf(orderId), total, '24')).expect(200);
+      expect((await http().post(`/orders/${orderId}/cancel`).set(auth(t)).expect(201)).body.status).toBe('CANCELLED');
+      expect(await stockOf('Cà phê hạt')).toBe(coffeeAfterOrder + 18 * 2);
+      await http().post(`/orders/${orderId}/cancel`).set(auth(t)).expect(409);
+      expect(await stockOf('Cà phê hạt')).toBe(coffeeAfterOrder + 18 * 2);
+      await http().post('/payments/vnpay').set(auth(t)).set(key()).send({ orderId }).expect(409); // đơn đã hủy
+    });
+
+    it('Idempotency-Key: thiếu hoặc sai định dạng → 400, không tạo giao dịch', async () => {
+      const { t, orderId } = await newOrder('idem1@test.vn');
+      const r = await http().post('/payments/vnpay').set(auth(t)).send({ orderId }).expect(400);
+      expect(r.body.message).toBe('Thiếu header Idempotency-Key');
+      await http().post('/payments/vnpay').set(auth(t)).set('Idempotency-Key', 'ngan').send({ orderId }).expect(400);
+      expect(await prisma.payment.count({ where: { orderId } })).toBe(0);
+    });
+
+    it('Idempotency-Key: gửi lại cùng key trả đúng giao dịch cũ; dùng cho đơn khác hoặc người khác → 409', async () => {
+      const a = await newOrder('idem2@test.vn');
+      const k = key();
+      const first = (await http().post('/payments/vnpay').set(auth(a.t)).set(k).send({ orderId: a.orderId }).expect(200)).body;
+      const again = (await http().post('/payments/vnpay').set(auth(a.t)).set(k).send({ orderId: a.orderId }).expect(200)).body;
+      expect(again).toMatchObject({ paymentId: first.paymentId, orderId: a.orderId, paymentStatus: 'PENDING' });
+      expect(await prisma.payment.count({ where: { orderId: a.orderId } })).toBe(1);
+
+      const t2 = await placeOrder(a.t, [{ productId: 1, sizeId: 1, quantity: 1 }]).expect(201);
+      await http().post('/payments/vnpay').set(auth(a.t)).set(k).send({ orderId: t2.body.id }).expect(409); // cùng key, đơn khác
+      const other = await register('idem2x@test.vn');
+      await http().post('/payments/vnpay').set(auth(other)).set(k).send({ orderId: a.orderId }).expect(409); // cùng key, người khác
+    });
+
+    it('Idempotency-Key: gửi lại key của giao dịch đã thất bại → trả kết quả cũ, không mở link mới', async () => {
+      const { t, orderId, total } = await newOrder('idem3@test.vn');
+      const k = key();
+      await http().post('/payments/vnpay').set(auth(t)).set(k).send({ orderId }).expect(200);
+      await http().get('/payments/vnpay/ipn').query(vnp(await txnRefOf(orderId), total, '24')).expect(200);
+      const replay = (await http().post('/payments/vnpay').set(auth(t)).set(k).send({ orderId }).expect(200)).body;
+      expect(replay.paymentStatus).toBe('FAILED');
+      expect(replay.paymentUrl).toBeUndefined();
+      expect(await prisma.payment.count({ where: { orderId } })).toBe(1);
+    });
+
+    it('đồng thời: 5 request cùng key, hoặc 2 request khác key → chỉ 1 giao dịch', async () => {
+      const a = await newOrder('idem4@test.vn');
+      const k = key();
+      const same = await Promise.all(Array.from({ length: 5 }, () => http().post('/payments/vnpay').set(auth(a.t)).set(k).send({ orderId: a.orderId })));
+      expect(same.map((r) => r.status)).toEqual([200, 200, 200, 200, 200]);
+      expect(new Set(same.map((r) => r.body.paymentId)).size).toBe(1);
+      expect(await prisma.payment.count({ where: { orderId: a.orderId } })).toBe(1);
+
+      const b = await newOrder('idem5@test.vn');
+      const diff = await Promise.all([1, 2].map(() => http().post('/payments/vnpay').set(auth(b.t)).set(key()).send({ orderId: b.orderId })));
+      expect(diff.map((r) => r.status)).toEqual([200, 200]);
+      expect(diff[0].body.paymentId).toBe(diff[1].body.paymentId);
+      expect(await prisma.payment.count({ where: { orderId: b.orderId } })).toBe(1);
+    });
+  });
+
+  describe('GET /orders/me – lịch sử đơn của tôi', () => {
+    it('cần đăng nhập; chưa có đơn → mảng rỗng', async () => {
+      await http().get('/orders/me').expect(401);
+      const t = await register('me0@test.vn');
+      expect((await http().get('/orders/me').set(auth(t)).expect(200)).body).toEqual([]);
+    });
+
+    it('chỉ trả đơn của chính mình, mới nhất trước, kèm danh sách món', async () => {
+      const t = await register('me1@test.vn');
+      const o1 = (await placeOrder(t, [{ productId: 1, sizeId: 1, quantity: 1 }]).expect(201)).body;
+      const o2 = (await placeOrder(t, [{ productId: 2, sizeId: 2, quantity: 2 }]).expect(201)).body;
+      const other = await register('me2@test.vn');
+      await placeOrder(other, [{ productId: 1, sizeId: 1, quantity: 1 }]).expect(201);
+
+      const mine = (await http().get('/orders/me').set(auth(t)).expect(200)).body;
+      expect(mine.map((o: any) => o.id)).toEqual([o2.id, o1.id]);
+      expect(mine[0].items[0]).toMatchObject({ productName: 'Bạc xỉu', sizeName: 'M', quantity: 2 });
+      expect(mine[0].ingredientUsage).toBeUndefined(); // không lộ dữ liệu nội bộ
+      expect((await http().get('/orders/me').set(auth(other)).expect(200)).body).toHaveLength(1);
+
+      const staff = (await http().post('/auth/login').send({ email: 'staff@brewlite.local', password: 'Staff@123' }).expect(200)).body.accessToken;
+      expect((await http().get('/orders/me').set(auth(staff)).expect(200)).body).toEqual([]); // nhân viên: chỉ đơn của chính mình
     });
   });
 

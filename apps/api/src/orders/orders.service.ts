@@ -8,6 +8,9 @@ import { CreateOrderDto, NEXT_STATUS } from './orders.dto';
 
 const HIDE_INTERNAL = { ingredientUsage: true } as const;
 
+/** Đơn chưa thanh toán xong: còn được thanh toán (lại) hoặc hủy để hoàn kho */
+export const UNPAID: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED];
+
 @Injectable()
 export class OrdersService {
   constructor(private prisma: PrismaService) {}
@@ -90,9 +93,12 @@ export class OrdersService {
     return this.findOneFor({ id: userId, role: Role.CUSTOMER, email: '' }, orderId);
   }
 
-  /** Đổi PENDING_PAYMENT → CANCELLED và hoàn kho. Chỉ chạy một lần nhờ UPDATE có điều kiện. */
+  /**
+   * Hủy đơn chưa thanh toán xong (PENDING_PAYMENT hoặc PAYMENT_FAILED) → CANCELLED và hoàn kho.
+   * Chỉ chạy một lần nhờ UPDATE có điều kiện.
+   */
   async cancelPending(tx: Prisma.TransactionClient, orderId: number): Promise<boolean> {
-    const res = await tx.order.updateMany({ where: { id: orderId, status: OrderStatus.PENDING_PAYMENT }, data: { status: OrderStatus.CANCELLED } });
+    const res = await tx.order.updateMany({ where: { id: orderId, status: { in: UNPAID } }, data: { status: OrderStatus.CANCELLED } });
     if (!res.count) return false;
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
     const usage = order.ingredientUsage as Record<string, number>;
@@ -104,8 +110,18 @@ export class OrdersService {
   async cancelMine(user: AuthUser, orderId: number) {
     await this.findOneFor(user, orderId);
     const ok = await this.prisma.$transaction((tx) => this.cancelPending(tx, orderId));
-    if (!ok) throw new ConflictException('Chỉ hủy được đơn đang chờ thanh toán');
+    if (!ok) throw new ConflictException('Chỉ hủy được đơn chưa thanh toán');
     return this.findOneFor(user, orderId);
+  }
+
+  /** Lịch sử đơn của chính người đang đăng nhập (kể cả nhân viên), mới nhất trước. */
+  listMine(userId: number) {
+    return this.prisma.order.findMany({
+      where: { userId },
+      include: { items: true },
+      omit: HIDE_INTERNAL,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
   }
 
   /** Khách xem đơn của mình; nhân viên xem tất cả. */
