@@ -21,6 +21,10 @@ Tài liệu này quy định chiến lược nhánh, pull request, quy ước co
 | `refactor` | Đổi cấu trúc, không đổi hành vi | `refactor/order-state` |
 
 - Mỗi nhánh chỉ giải quyết một hạng mục trong bảng phân công/backlog và nên sống dưới 2 ngày.
+- Ngoại lệ: thành viên làm nhiều hạng mục tài liệu nhỏ có thể dùng nhánh cá nhân
+  `<github-user>/<tên>` (ví dụ `Kenkra9999/quach-van-truong`), nhưng mỗi hạng mục phải là một
+  commit riêng có `scope` ghi rõ task (`docs(task-2): ...`) để review và truy vết.
+- Không sửa tệp thuộc phần việc của người khác trên nhánh của mình; góp ý qua review PR.
 - Xóa nhánh sau khi merge.
 
 ### Thứ tự theo Task
@@ -57,12 +61,15 @@ thể hiện đúng thứ tự.
 
 ### Bảo vệ nhánh `main`
 
-Chủ repository cấu hình branch protection cho `main`:
+Ruleset `main-protection` trên GitHub (đang `active`) áp dụng cho `main`:
 
-- Require a pull request before merging, tối thiểu 1 approval.
-- Require status checks to pass before merging: chọn các job của workflow CI (lint, test, build).
-- Require branches to be up to date before merging.
-- Không cho phép force push và xóa nhánh `main`.
+- Bắt buộc mọi thay đổi đi qua pull request.
+- Bắt buộc status check `api` của workflow CI (Install → Lint → Unit Test → Build) pass.
+- Cấm force push và cấm xóa nhánh `main`.
+
+Đề xuất bổ sung cho chủ repository: đặt số approve tối thiểu là 1, và thêm check `web` khi CI có
+job cho frontend. Trong lúc ruleset còn để 0 approve, nhóm vẫn tự tuân thủ điều kiện "có ít nhất
+1 approve" ở mục 2. Minh chứng CI xem [`docs/ci-evidence.md`](docs/ci-evidence.md).
 
 ## 3. Quy ước commit (Conventional Commits)
 
