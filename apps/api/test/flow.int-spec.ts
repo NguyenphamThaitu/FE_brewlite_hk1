@@ -345,7 +345,21 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
     it('cần đăng nhập; chưa có đơn → mảng rỗng', async () => {
       await http().get('/orders/me').expect(401);
       const t = await register('me0@test.vn');
-      expect((await http().get('/orders/me').set(auth(t)).expect(200)).body).toEqual([]);
+      expect((await http().get('/orders/me').set(auth(t)).expect(200)).body).toEqual({ items: [], page: 1, limit: 20, total: 0, totalPages: 0 });
+    });
+
+    it('phân trang: page/limit, tham số sai → 400', async () => {
+      const t = await register('mepage@test.vn');
+      const ids: number[] = [];
+      for (let i = 0; i < 3; i++) ids.push((await placeOrder(t, [{ productId: 1, sizeId: 1, quantity: 1 }]).expect(201)).body.id);
+      const p1 = (await http().get('/orders/me').query({ page: 1, limit: 2 }).set(auth(t)).expect(200)).body;
+      expect(p1).toMatchObject({ page: 1, limit: 2, total: 3, totalPages: 2 });
+      expect(p1.items.map((o: any) => o.id)).toEqual([ids[2], ids[1]]);
+      const p2 = (await http().get('/orders/me').query({ page: 2, limit: 2 }).set(auth(t)).expect(200)).body;
+      expect(p2.items.map((o: any) => o.id)).toEqual([ids[0]]);
+      await http().get('/orders/me').query({ page: 0 }).set(auth(t)).expect(400);
+      await http().get('/orders/me').query({ limit: 51 }).set(auth(t)).expect(400);
+      await http().get('/orders/me').query({ page: 'abc' }).set(auth(t)).expect(400);
     });
 
     it('chỉ trả đơn của chính mình, mới nhất trước, kèm danh sách món', async () => {
@@ -355,14 +369,14 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       const other = await register('me2@test.vn');
       await placeOrder(other, [{ productId: 1, sizeId: 1, quantity: 1 }]).expect(201);
 
-      const mine = (await http().get('/orders/me').set(auth(t)).expect(200)).body;
+      const mine = (await http().get('/orders/me').set(auth(t)).expect(200)).body.items;
       expect(mine.map((o: any) => o.id)).toEqual([o2.id, o1.id]);
       expect(mine[0].items[0]).toMatchObject({ productName: 'Bạc xỉu', sizeName: 'M', quantity: 2 });
       expect(mine[0].ingredientUsage).toBeUndefined(); // không lộ dữ liệu nội bộ
-      expect((await http().get('/orders/me').set(auth(other)).expect(200)).body).toHaveLength(1);
+      expect((await http().get('/orders/me').set(auth(other)).expect(200)).body.total).toBe(1);
 
       const staff = (await http().post('/auth/login').send({ email: 'staff@brewlite.local', password: 'Staff@123' }).expect(200)).body.accessToken;
-      expect((await http().get('/orders/me').set(auth(staff)).expect(200)).body).toEqual([]); // nhân viên: chỉ đơn của chính mình
+      expect((await http().get('/orders/me').set(auth(staff)).expect(200)).body.total).toBe(0); // nhân viên: chỉ đơn của chính mình
     });
   });
 

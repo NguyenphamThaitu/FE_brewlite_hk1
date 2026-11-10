@@ -14,6 +14,12 @@ export class UpdateStatusDto {
   status: OrderStatus;
 }
 
+/** Phân trang lịch sử đơn của tôi (FR-30): mặc định trang 1, 20 đơn/trang, tối đa 50 */
+export class MyOrdersQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1, { message: 'page tối thiểu là 1' }) page: number = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(50, { message: 'limit tối đa là 50' }) limit: number = 20;
+}
+
 /** Một dòng trong giỏ hàng do frontend gửi lên. Không nhận giá từ client – giá luôn tính lại theo DB. */
 export class OrderItemDto {
   @IsInt() productId: number;

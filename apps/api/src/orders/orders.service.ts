@@ -114,14 +114,21 @@ export class OrdersService {
     return this.findOneFor(user, orderId);
   }
 
-  /** Lịch sử đơn của chính người đang đăng nhập (kể cả nhân viên), mới nhất trước. */
-  listMine(userId: number) {
-    return this.prisma.order.findMany({
-      where: { userId },
-      include: { items: true },
-      omit: HIDE_INTERNAL,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
+  /** Lịch sử đơn của chính người đang đăng nhập (kể cả nhân viên), mới nhất trước, có phân trang (FR-30). */
+  async listMine(userId: number, page = 1, limit = 20) {
+    const where = { userId };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where,
+        include: { items: true },
+        omit: HIDE_INTERNAL,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+    return { items, page, limit, total, totalPages: Math.ceil(total / limit) };
   }
 
   /** Khách xem đơn của mình; nhân viên xem tất cả. */
