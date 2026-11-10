@@ -18,7 +18,8 @@ Dùng một repository duy nhất (monorepo):
 - `apps/api`: NestJS (TypeScript), Prisma, PostgreSQL.
 - `docs/`: yêu cầu, sơ đồ, kiến trúc, ma trận truy vết, hướng dẫn deploy.
 - `tests/`: integration và end-to-end test chạy trên cả hệ thống.
-- Mỗi app có `package.json` riêng; CI chạy job riêng cho từng app.
+- Mỗi app có `package.json`, `Dockerfile` riêng; `docker-compose.yml` ở gốc chạy `db`, `api`, `web`.
+- CI chạy job riêng cho từng app (hiện có job `api`; job `web` cần thêm khi `apps/web` được merge).
 
 ## Hệ quả
 
