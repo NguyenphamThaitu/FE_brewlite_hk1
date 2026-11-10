@@ -1,12 +1,14 @@
 @startuml class-domain
 ' BrewLite - Class diagram muc domain (Task 2.3)
-' Nguon: docs/diagrams/class-domain.md
+' Bam theo apps/api/prisma/schema.prisma. Mo ta: docs/diagrams/class-domain.md
 hide empty members
 skinparam classAttributeIconSize 0
 skinparam shadowing false
 skinparam class {
   BackgroundColor #FFF8EE
   BorderColor #8A5A2B
+  BackgroundColor<<mở rộng>> #F2F2F2
+  BorderColor<<mở rộng>> #888888
 }
 skinparam enum {
   BackgroundColor #EEF5FF
@@ -17,39 +19,23 @@ package "Enum" {
   enum Role {
     CUSTOMER
     STAFF
-    ADMIN
-  }
-  enum Size {
-    S
-    M
-    L
   }
   enum OrderStatus {
-    PENDING
+    PENDING_PAYMENT
     PAID
-    PAYMENT_FAILED
     PREPARING
     READY
     COMPLETED
     CANCELLED
   }
-  enum PaymentMethod {
-    E_WALLET
-    BANK_CARD
-  }
   enum PaymentStatus {
+    PENDING
     SUCCESS
     FAILED
   }
-  enum LoyaltyType {
+  enum LoyaltyType <<mở rộng>> {
     EARN
-    REDEEM
     REVERSE
-  }
-  enum ReservationStatus {
-    RESERVED
-    CONSUMED
-    RELEASED
   }
 }
 
@@ -57,129 +43,133 @@ class User {
   + id : Int
   + email : String {unique}
   + passwordHash : String
+  + fullName : String
   + role : Role
-  + loyaltyPoints : Int
   + createdAt : DateTime
 }
 
-class Product {
-  + id : Int
-  + name : String
-  + category : String
-  + price : Int
-  + imageUrl : String
-  + stock : Int
-  + version : Int
-  + isActive : Boolean
-  + priceFor(size : Size, toppings : String[]) : Int
+package "Menu" {
+  class Product {
+    + id : Int
+    + name : String
+    + description : String
+    + basePrice : Int
+    + imageUrl : String [0..1]
+    + category : String
+    + isActive : Boolean
+  }
+  class Size {
+    + id : Int
+    + name : String
+    + extraPrice : Int
+    + recipeMultiplier : Decimal
+  }
+  class Topping {
+    + id : Int
+    + name : String
+    + price : Int
+    + ingredientQty : Decimal
+  }
 }
 
-class Order {
-  + id : Int
-  + status : OrderStatus
-  + subtotal : Int
-  + discount : Int
-  + total : Int
-  + reservationExpiresAt : DateTime [0..1]
-  + createdAt : DateTime
-  + updatedAt : DateTime
-  + assertTransition(to : OrderStatus) : void
-  + canBeCancelledByCustomer() : Boolean
-}
-
-class OrderItem {
-  + id : Int
-  + size : Size
-  + toppings : String[]
-  + qty : Int
-  + unitPrice : Int
-  + lineTotal : Int
-}
-
-class Payment {
-  + id : Int
-  + idempotencyKey : String {unique}
-  + amount : Int
-  + method : PaymentMethod
-  + status : PaymentStatus
-  + createdAt : DateTime
-}
-
-class Promotion {
-  + code : String {id}
-  + percent : Int
-  + minOrderValue : Int
-  + usageLimit : Int [0..1]
-  + usedCount : Int
-  + active : Boolean
-  + startDate : DateTime [0..1]
-  + endDate : DateTime [0..1]
-  + isApplicable(subtotal : Int, now : DateTime) : Boolean
-}
-
-class LoyaltyTransaction {
-  + id : Int
-  + type : LoyaltyType
-  + points : Int
-  + reason : String
-  + createdAt : DateTime
-}
-
-package "Tồn kho nguyên liệu" {
+package "Kho nguyên liệu" {
   class Ingredient {
     + id : Int
-    + name : String {unique}
+    + name : String
     + unit : String
-    + stock : Decimal
-    + reservedQty : Decimal
-    + version : Int
+    + quantity : Decimal
   }
-  class RecipeItem {
-    + size : Size
-    + amount : Decimal
+  class ProductIngredient {
+    + quantity : Decimal
   }
-  class StockReservation {
-    + amount : Decimal
-    + status : ReservationStatus
+}
+
+package "Đơn hàng và thanh toán" {
+  class Order {
+    + id : Int
+    + status : OrderStatus
+    + totalAmount : Int
+    + ingredientUsage : Json
+    + createdAt : DateTime
+  }
+  class OrderItem {
+    + id : Int
+    + productId : Int
+    + productName : String
+    + sizeName : String
+    + toppings : Json
+    + unitPrice : Int
+    + quantity : Int
+    + lineTotal : Int
+  }
+  class Payment {
+    + id : Int
+    + method : String = "VNPAY"
+    + amount : Int
+    + status : PaymentStatus
+    + txnRef : String {unique}
+    + vnpTransactionNo : String [0..1]
+    + responseCode : String [0..1]
+    + createdAt : DateTime
+    + paidAt : DateTime [0..1]
+  }
+}
+
+package "Mở rộng (chưa có trong schema)" {
+  class Promotion <<mở rộng>> {
+    + code : String {unique}
+    + percent : Int
+    + minOrderValue : Int
+    + usageLimit : Int [0..1]
+    + usedCount : Int
+    + active : Boolean
+    + startDate : DateTime [0..1]
+    + endDate : DateTime [0..1]
+  }
+  class LoyaltyTransaction <<mở rộng>> {
+    + id : Int
+    + type : LoyaltyType
+    + points : Int
+    + createdAt : DateTime
   }
 }
 
 User "1" -- "0..*" Order : đặt >
 Order "1" *-- "1..*" OrderItem : gồm >
-OrderItem "0..*" --> "1" Product : tham chiếu >
-Order "1" -- "0..*" Payment : được thanh toán bởi >
-Order "0..*" --> "0..1" Promotion : áp dụng >
-User "1" *-- "0..*" LoyaltyTransaction : sở hữu >
-LoyaltyTransaction "0..*" --> "0..1" Order : phát sinh từ >
+OrderItem "0..*" ..> "1" Product : productId (bản chụp) >
+Order "1" *-- "0..*" Payment : thanh toán qua >
 
-Product "1" *-- "0..*" RecipeItem : công thức >
-RecipeItem "0..*" --> "1" Ingredient : dùng >
-Order "1" *-- "0..*" StockReservation : giữ chỗ >
-StockReservation "0..*" --> "1" Ingredient : trên >
+Product "1" -- "0..*" ProductIngredient
+ProductIngredient "0..*" -- "1" Ingredient
+Topping "0..*" --> "1" Ingredient : dùng >
+Order ..> Ingredient : ingredientUsage\n(lượng đã trừ kho)
+
+Order "0..*" ..> "0..1" Promotion : áp dụng >
+User "1" *.. "0..*" LoyaltyTransaction : sở hữu >
+LoyaltyTransaction "0..*" ..> "0..1" Order : phát sinh từ >
 
 User ..> Role
 Order ..> OrderStatus
-OrderItem ..> Size
-Payment ..> PaymentMethod
 Payment ..> PaymentStatus
 LoyaltyTransaction ..> LoyaltyType
-StockReservation ..> ReservationStatus
 
 note right of Order
-  total = subtotal - discount
-  Mọi thay đổi status đi qua assertTransition()
-  theo máy trạng thái FR-08.
-  COMPLETED, CANCELLED là trạng thái kết thúc.
+  totalAmount = tổng OrderItem.lineTotal, tính lại ở server.
+  Tạo đơn: khóa Ingredient, trừ kho, status = PENDING_PAYMENT.
+  PENDING_PAYMENT → PAID (VNPay báo thành công)
+  PENDING_PAYMENT → CANCELLED (khách hủy hoặc thanh toán lỗi,
+                               hoàn kho theo ingredientUsage)
+  PAID → PREPARING → READY → COMPLETED (chỉ STAFF)
 end note
 
 note bottom of Payment
-  Một Order có thể có nhiều Payment (thử lại sau
-  PAYMENT_FAILED) nhưng tối đa 1 Payment SUCCESS.
-  Gửi lại cùng idempotencyKey trả về Payment cũ.
+  Gọi lại khi đã có Payment PENDING thì dùng lại txnRef.
+  Kết quả VNPay chỉ xử lý khi Payment còn PENDING,
+  nên gọi lặp không cập nhật đơn lần hai.
 end note
 
-note left of LoyaltyTransaction
-  EARN: +1 điểm / 10.000đ khi Order chuyển PAID.
-  User.loyaltyPoints = tổng points các giao dịch.
+note bottom of ProductIngredient
+  Công thức cho 1 ly size chuẩn.
+  Lượng cần = quantity × Size.recipeMultiplier × số ly.
 end note
 @enduml
