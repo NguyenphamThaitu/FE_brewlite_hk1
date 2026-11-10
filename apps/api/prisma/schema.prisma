@@ -1,0 +1,134 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client" // Rust-free client, dùng @prisma/adapter-pg
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  role         Role       @default(CUSTOMER)
+  createdAt    DateTime   @default(now())
+  orders       Order[]
+}
+
+/// Nguyên liệu trong kho. quantity = lượng còn lại (theo unit)
+model Ingredient {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  unit               String
+  quantity           Decimal             @db.Decimal(12, 2)
+  productIngredients ProductIngredient[]
+  toppings           Topping[]
+}
+
+model Product {
+  id          Int                 @id @default(autoincrement())
+  name        String
+  description String              @default("")
+  basePrice   Int
+  imageUrl    String?
+  category    String              @default("drink")
+  isActive    Boolean             @default(true)
+  recipe      ProductIngredient[]
+}
+
+/// Công thức: 1 ly size chuẩn (multiplier = 1) cần bao nhiêu nguyên liệu
+model ProductIngredient {
+  productId    Int
+  ingredientId Int
+  quantity     Decimal    @db.Decimal(10, 2)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@id([productId, ingredientId])
+}
+
+model Size {
+  id               Int        @id @default(autoincrement())
+  name             String
+  extraPrice       Int        @default(0)
+  /// Hệ số nhân công thức (S=1, M=1.25, L=1.5)
+  recipeMultiplier Decimal    @default(1) @db.Decimal(4, 2)
+}
+
+model Topping {
+  id            Int        @id @default(autoincrement())
+  name          String
+  price         Int
+  ingredientId  Int
+  /// Lượng nguyên liệu dùng cho 1 phần topping
+  ingredientQty Decimal    @db.Decimal(10, 2)
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  userId          Int
+  status          OrderStatus @default(PENDING_PAYMENT)
+  totalAmount     Int
+  /// { [ingredientId]: lượng đã trừ kho } – dùng để hoàn kho khi hủy/thanh toán lỗi
+  ingredientUsage Json        @default("{}")
+  createdAt       DateTime    @default(now())
+  user            User        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id          Int    @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  productName String
+  sizeName    String
+  toppings    Json   @default("[]")
+  unitPrice   Int
+  quantity    Int
+  lineTotal   Int
+  order       Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                Int           @id @default(autoincrement())
+  orderId           Int
+  method            String        @default("VNPAY")
+  amount            Int
+  status            PaymentStatus @default(PENDING)
+  /// vnp_TxnRef gửi sang VNPay – duy nhất
+  txnRef            String        @unique
+  vnpTransactionNo  String?
+  responseCode      String?
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
