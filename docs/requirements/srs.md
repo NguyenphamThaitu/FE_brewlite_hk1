@@ -1,155 +1,190 @@
-# Software Requirements Specification (SRS) — BrewLite System
+# BrewLite – Đặc tả yêu cầu phần mềm (SRS rút gọn)
 
-> **Dự án:** BrewLite — Hệ thống đặt cà phê và thanh toán không dùng tiền mặt  
-> **Môn học:** Công nghệ Phần mềm — Trường Đại học Sài Gòn (SGU)  
-> **Học kỳ:** I — Năm học 2026–2027  
-> **Giai đoạn:** Task 1 — Khai thác và đặc tả yêu cầu (Task 1.2 - SRS)  
-> **Phân hệ đặc tả:** Đặt đơn hàng, Thanh toán không tiền mặt, Lịch sử & Trạng thái đơn hàng (`FR-05` đến `FR-08`)  
+Môn Công nghệ Phần mềm · Assignment 2 – Task 1.2 · Phiên bản 1.0
 
----
+## 1. Giới thiệu
 
-## 1. Tổng quan phân hệ
+### 1.1 Mục đích
+Tài liệu này đặc tả yêu cầu chức năng (FR) và phi chức năng (NFR) của BrewLite, ứng dụng đặt đồ uống mobile-first/PWA. Mỗi yêu cầu có mã định danh, mức ưu tiên MoSCoW và tiêu chí chấp nhận (AC) có thể kiểm chứng để viết test ở Task 4–5.
 
-Phân hệ này đặc tả 4 yêu cầu chức năng cốt lõi (`FR-05` đến `FR-08`) thuộc chu trình tạo đơn, thanh toán và xử lý vòng đời đơn hàng cho hệ thống **BrewLite** (Assignment 2).
+### 1.2 Phạm vi
+Luồng nghiệp vụ tối thiểu: **Xem menu → Chọn tùy chọn → Giỏ hàng → Đặt đơn → Thanh toán → Theo dõi đơn**. Công nghệ bắt buộc: Next.js (frontend), NestJS (backend), PostgreSQL (dữ liệu), Docker (đóng gói).
 
-Hệ thống được thiết kế tinh gọn theo phạm vi tối thiểu của đề tài:
-- Quản lý tồn kho trực tiếp theo số lượng sản phẩm (`Product.stock`), không quản lý định lượng kho nguyên liệu thô.
-- Thực hiện trừ tồn kho sản phẩm trong cùng một Database Transaction ngay khi tạo đơn hàng (`POST /orders`). Nếu đơn hàng bị hủy (`CANCELLED`), hệ thống tự động hoàn trả lại số lượng vào kho.
-- Khách hàng theo dõi trạng thái đơn hàng thông qua cơ chế tải lại trang hoặc polling định kỳ phía frontend.
+### 1.3 Quy ước
+| Ký hiệu | Ý nghĩa |
+|---|---|
+| **Must** | Bắt buộc có trong MVP; thiếu thì luồng end-to-end không hoàn chỉnh |
+| **Should** | Quan trọng, đưa vào nếu đủ thời gian trong Sprint 2 |
+| **Could** | Mong muốn, chỉ làm khi còn dư nguồn lực |
+| **Won't** | Không thực hiện trong phạm vi học phần này (ghi nhận để mở rộng sau) |
 
----
+Quy ước chung cho AC: mọi API lỗi trả mã HTTP đúng chuẩn kèm thông điệp lỗi dạng JSON; mọi giao diện kiểm thử ở viewport 360×640 trở lên.
 
-## 2. Yêu cầu Chức năng chi tiết (FR-05 → FR-08)
+## 2. Mô tả tổng quan
 
-### FR-05: Tạo đơn hàng từ giỏ hàng (Create Order)
-- **Mã yêu cầu:** `FR-05`
-- **Tên yêu cầu:** Tạo đơn hàng mới từ giỏ hàng (Create Pending Order)
-- **Tác nhân:** Khách hàng (Customer) đã đăng nhập.
-- **Mức độ ưu tiên (MoSCoW):** **Must have** (Bắt buộc trong MVP).
-- **API Endpoint:** `POST /orders`
-- **Mục tiêu:** Chuyển đổi các món đồ uống, kích cỡ (Size S/M/L) và topping trong giỏ hàng thành một đơn hàng mới ở trạng thái `PENDING`, đồng thời trừ tồn kho sản phẩm tương ứng.
+### 2.1 Tác nhân (actor)
+| Actor | Mô tả |
+|---|---|
+| Khách vãng lai | Xem menu, chi tiết sản phẩm, thêm vào giỏ; chưa đăng nhập |
+| Khách hàng | Đã đăng nhập; đặt đơn, thanh toán, xem lịch sử và trạng thái đơn |
+| Nhân viên quầy | Xem và cập nhật trạng thái đơn |
+| Quản lý/Admin | Quản lý sản phẩm, tồn kho, khuyến mãi, xem báo cáo |
+| Payment Service (mô phỏng) | Hệ thống bên ngoài xử lý thanh toán Ví/Thẻ |
 
-#### Mô tả luồng xử lý và quy tắc nghiệp vụ:
-1. Khách hàng gửi yêu cầu tạo đơn hàng chứa danh sách món: `productId`, kích cỡ (`size`: S/M/L), danh sách `toppings`, số lượng (`qty`) và ghi chú kèm theo Bearer JWT Token.
-2. Hệ thống kiểm tra tính hợp lệ của phiên đăng nhập (JWT Guard) và dữ liệu đầu vào (DTO Validation). Nếu chưa đăng nhập hoặc token không hợp lệ, trả về mã lỗi `401 Unauthorized`.
-3. Ràng buộc giỏ hàng: Giỏ hàng phải chứa ít nhất 1 sản phẩm với số lượng hợp lệ (qty >= 1). Nếu giỏ hàng rỗng, trả về mã lỗi `400 Bad Request`.
-4. Kiểm tra và trừ tồn kho theo sản phẩm (`Product.stock`):
-   - Phía backend thực thi một Database Transaction:
-     - Kiểm tra tồn kho của từng sản phẩm trong đơn.
-     - **Nếu đủ hàng:** Trừ trực tiếp số lượng tồn kho của sản phẩm (`Product.stock = Product.stock - qty`), tính toán tổng tiền đơn hàng độc lập phía server (giá gốc sản phẩm + phụ thu size + phụ thu topping), tạo bản ghi `Order` với trạng thái `PENDING`, tạo các bản ghi `OrderItem` và trả về thông tin đơn kèm mã đơn (`orderId`) với mã phản hồi `201 Created`.
-     - **Nếu không đủ hàng:** Hủy bỏ toàn bộ Transaction (Rollback), từ chối tạo đơn và trả về mã lỗi `400 Bad Request` kèm thông báo rõ sản phẩm đã hết hàng.
+### 2.2 Vòng đời trạng thái đơn hàng
+`PENDING_PAYMENT → PAID → PREPARING → READY → COMPLETED`; nhánh phụ: `PENDING_PAYMENT → CANCELLED` (hủy hoặc quá hạn), `PENDING_PAYMENT → PAYMENT_FAILED → PENDING_PAYMENT` (thử lại).
 
-#### Tiêu chí chấp nhận (Acceptance Criteria):
-- **AC-05.1:** Gửi request không có JWT Token hoặc token hết hạn -> Hệ thống phản hồi mã HTTP `401 Unauthorized`.
-- **AC-05.2:** Gửi request với danh sách `items` rỗng -> Hệ thống phản hồi mã HTTP `400 Bad Request` ("Giỏ hàng không được để trống").
-- **AC-05.3:** Đặt món có số lượng vượt quá `Product.stock` -> Hệ thống phản hồi mã HTTP `400 Bad Request`, không tạo đơn và không làm thay đổi tồn kho sản phẩm trong cơ sở dữ liệu.
-- **AC-05.4:** Đặt món khi tồn kho đủ -> Hệ thống tạo đơn hàng thành công ở trạng thái `PENDING`, phản hồi HTTP `201 Created` kèm `orderId`, và `stock` của sản phẩm trong bảng `Product` giảm chính xác bằng số lượng đã đặt.
-- **AC-05.5:** Tổng tiền đơn hàng (`total`) bắt buộc được tính toán lại độc lập tại backend, không sử dụng giá trị tổng tiền client gửi lên.
+### 2.3 Giả định
+- Một cửa hàng duy nhất, một loại tiền tệ (VND).
+- Thanh toán là dịch vụ mô phỏng, không kết nối cổng thanh toán thật.
+- Người dùng truy cập chủ yếu bằng điện thoại (Chrome/Safari mobile).
 
----
+## 3. Yêu cầu chức năng
 
-### FR-06: Thanh toán không tiền mặt mô phỏng (Cashless Payment)
-- **Mã yêu cầu:** `FR-06`
-- **Tên yêu cầu:** Thanh toán đơn hàng không dùng tiền mặt (Process Cashless Payment)
-- **Tác nhân:** Khách hàng (Customer), Cổng thanh toán mô phỏng (Mock Payment Gateway).
-- **Mức độ ưu tiên (MoSCoW):**
-  - Luồng thanh toán cốt lõi (Ví/Thẻ, Idempotency): **Must have**.
-  - Tính năng tích điểm thưởng Loyalty: **Could have** (Phạm vi mở rộng).
-- **API Endpoint:** `POST /orders/:id/pay` (hoặc `POST /payments`)
-- **Mục tiêu:** Cho phép khách hàng thanh toán cho đơn hàng đang ở trạng thái `PENDING` hoặc `PAYMENT_FAILED` bằng Ví điện tử hoặc Thẻ ngân hàng nội địa với cơ chế chống lặp an toàn.
+### 3.1 Menu và sản phẩm
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-01 | Hệ thống hiển thị danh sách menu các sản phẩm đang bán (tên, ảnh, giá cơ bản) | Must | GET /products trả 200 và danh sách sản phẩm có trường id, name, price, imageUrl, available; màn hình menu hiển thị đủ số sản phẩm từ seed; sản phẩm ngừng bán không xuất hiện |
+| FR-02 | Menu có trạng thái loading, empty và error | Must | Khi API chậm hiển thị skeleton/spinner; khi danh sách rỗng hiển thị thông báo rỗng; khi API trả 5xx hoặc mất mạng hiển thị thông báo lỗi kèm nút Thử lại; nhấn Thử lại gọi lại API |
+| FR-03 | Sản phẩm hết hàng được đánh dấu và không thể thêm vào giỏ | Must | Sản phẩm có tồn kho = 0 hiển thị nhãn Hết hàng; nút Thêm vào giỏ bị vô hiệu hóa; gọi API thêm/đặt với sản phẩm đó trả 409 |
+| FR-04 | Lọc menu theo danh mục | Should | GET /products?category=X chỉ trả sản phẩm thuộc danh mục X; chọn tab danh mục trên UI cập nhật danh sách trong ≤ 1 giây (dữ liệu seed) |
+| FR-05 | Tìm kiếm sản phẩm theo tên | Could | GET /products?q=abc trả sản phẩm có tên chứa abc (không phân biệt hoa thường); không có kết quả thì hiển thị trạng thái empty |
 
-#### Mô tả luồng xử lý và quy tắc nghiệp vụ:
-1. Khách hàng gửi yêu cầu thanh toán kèm `orderId` và phương thức thanh toán (`E_WALLET` hoặc `BANK_CARD`).
-2. **Kiểm tra tiêu đề `Idempotency-Key`:**
-   - Tiêu đề `Idempotency-Key` là bắt buộc trong Header request. Nếu thiếu header này, backend trả về lỗi ngay lập tức: `400 Bad Request` ("Thiếu header Idempotency-Key").
-   - Nếu `Idempotency-Key` đã tồn tại trong bảng `Payment`: Backend kiểm tra quyền truy cập và trả về ngay kết quả giao dịch trước đó, không gọi sang cổng thanh toán và không trừ tiền lần 2.
-3. **Phân quyền và ràng buộc trạng thái đơn hàng:**
-   - Đơn hàng phải thuộc quyền sở hữu của người dùng đang đăng nhập (`Order.userId == RequestUser.userId`). Nếu thanh toán đơn của người khác, trả về mã lỗi `403 Forbidden` ("Bạn không có quyền thanh toán đơn hàng này").
-   - Chỉ cho phép thanh toán khi đơn hàng đang ở trạng thái `PENDING` hoặc `PAYMENT_FAILED`. Nếu đơn đã ở trạng thái `PAID`, `CANCELLED` hoặc `COMPLETED`, backend từ chối với mã lỗi `400 Bad Request`.
-4. **Tính toán số tiền thanh toán:** Backend tự truy vấn tổng tiền `Order.total` từ cơ sở dữ liệu để thực hiện thanh toán, tuyệt đối không nhận số tiền từ body client gửi lên.
-5. **Xử lý giao dịch qua Mock Gateway:**
-   - **Thanh toán thành công:** Cập nhật trạng thái đơn hàng sang `PAID`, lưu bản ghi `Payment` với trạng thái `SUCCESS`. Phía Frontend nhận phản hồi thành công và thực hiện xóa sạch giỏ hàng (clear cart). Nếu kích hoạt tính năng mở rộng (Could have), tự động cộng điểm thưởng tích lũy (Loyalty points) cho khách hàng.
-   - **Thanh toán thất bại:** Cập nhật trạng thái đơn hàng sang `PAYMENT_FAILED`, lưu bản ghi `Payment` với trạng thái `FAILED`. Giỏ hàng phía Frontend được giữ nguyên để khách hàng có thể thử lại.
+### 3.2 Chi tiết sản phẩm, size và topping
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-06 | Xem chi tiết sản phẩm (mô tả, giá, size, topping khả dụng) | Must | GET /products/:id trả 200 với đầy đủ thông tin; id không tồn tại trả 404; trang chi tiết hiển thị đúng dữ liệu trả về |
+| FR-07 | Chọn size (S/M/L) với mức giá chênh lệch | Must | Size mặc định được chọn sẵn; đổi size làm giá hiển thị cập nhật ngay đúng bằng giá cơ bản + phụ thu size; không chọn được size ngoài danh sách |
+| FR-08 | Chọn topping tùy chọn với giá phụ thu | Must | Có thể chọn nhiều topping tối đa 5 (cấu hình được); tổng giá = giá size + tổng giá topping; vượt giới hạn thì UI chặn và API trả 400 |
+| FR-09 | Ghi chú cho món (đường, đá, lời nhắn) | Could | Ghi chú tối đa 200 ký tự, được lưu vào OrderItem và hiển thị ở màn hình nhân viên |
 
-#### Tiêu chí chấp nhận (Acceptance Criteria):
-- **AC-06.1:** Không truyền header `Idempotency-Key` khi gọi API -> Hệ thống phản hồi mã HTTP `400 Bad Request` ("Thiếu header Idempotency-Key").
-- **AC-06.2:** Gửi liên tiếp nhiều request có cùng `Idempotency-Key` -> Hệ thống chỉ thực hiện thanh toán đúng 1 lần và trả về cùng một kết quả cho các lần gọi lặp lại.
-- **AC-06.3:** Người dùng gửi yêu cầu thanh toán đơn hàng của tài khoản khác -> Hệ thống phản hồi mã HTTP `403 Forbidden`.
-- **AC-06.4:** Thanh toán cho đơn hàng đã `PAID` hoặc `CANCELLED` -> Hệ thống phản hồi mã HTTP `400 Bad Request`.
-- **AC-06.5:** Giao dịch thành công -> Trạng thái đơn chuyển sang `PAID`, API trả về mã HTTP `200 OK`, Frontend tiến hành xóa giỏ hàng.
-- **AC-06.6:** Giao dịch thất bại (mô phỏng lỗi thẻ/số dư) -> Trạng thái đơn chuyển sang `PAYMENT_FAILED`, Frontend hiển thị thông báo lỗi và giữ nguyên giỏ hàng.
+### 3.3 Giỏ hàng
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-10 | Thêm món (kèm size, topping, số lượng) vào giỏ | Must | Sau khi thêm, biểu tượng giỏ cập nhật số lượng; hai món cùng sản phẩm nhưng khác size/topping là hai dòng riêng; cùng cấu hình thì cộng dồn số lượng |
+| FR-11 | Sửa số lượng và xóa món trong giỏ | Must | Tăng/giảm số lượng cập nhật thành tiền dòng và tổng ngay; số lượng về 0 hoặc nhấn Xóa thì dòng bị gỡ; số lượng hợp lệ từ 1 đến 20 |
+| FR-12 | Tính tổng tiền giỏ hàng | Must | Tổng = Σ (đơn giá gồm size và topping × số lượng); test đơn vị với ít nhất 5 bộ dữ liệu cho kết quả chính xác tuyệt đối (không sai số làm tròn, tính bằng số nguyên VND); giỏ rỗng hiển thị 0 và vô hiệu hóa nút Đặt đơn |
+| FR-13 | Giữ giỏ hàng khi tải lại trang hoặc sau khi đăng nhập | Should | Tải lại trang (F5) giỏ vẫn còn nguyên; đăng nhập từ giỏ của khách vãng lai không làm mất món |
 
----
+### 3.4 Xác thực và phân quyền
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-14 | Đăng ký tài khoản bằng email và mật khẩu | Must | POST /auth/register trả 201 với dữ liệu hợp lệ; email trùng trả 409; email sai định dạng hoặc mật khẩu dưới 8 ký tự trả 400 kèm lỗi theo từng trường; form hiển thị lỗi tương ứng |
+| FR-15 | Đăng nhập và cấp JWT | Must | POST /auth/login đúng thông tin trả 200 kèm access token JWT; sai thông tin trả 401 với thông báo không tiết lộ email hay mật khẩu sai; token chứa userId và role |
+| FR-16 | Đăng xuất và xử lý token hết hạn | Must | Đăng xuất xóa token phía client và chuyển về menu; gọi API bảo vệ bằng token hết hạn trả 401 và UI yêu cầu đăng nhập lại mà không crash |
+| FR-17 | Phân quyền theo vai trò (CUSTOMER, STAFF, ADMIN) | Must | Customer gọi API dành cho Staff/Admin nhận 403; Staff không truy cập được API quản trị sản phẩm; Customer chỉ đọc được đơn của chính mình (đơn của người khác trả 403 hoặc 404) |
+| FR-18 | Yêu cầu đăng nhập khi đặt đơn | Must | Khách vãng lai nhấn Đặt đơn được chuyển đến trang đăng nhập; sau đăng nhập thành công quay lại bước đặt đơn với giỏ hàng còn nguyên |
 
-### FR-07: Xem lịch sử và chi tiết đơn hàng (Order History & Detail)
-- **Mã yêu cầu:** `FR-07`
-- **Tên yêu cầu:** Tra cứu lịch sử và chi tiết đơn hàng (View Order History & Detail)
-- **Tác nhân:** Khách hàng (Customer).
-- **Mức độ ưu tiên (MoSCoW):** **Must have**.
-- **API Endpoint:** `GET /orders/me` (Danh sách) và `GET /orders/:id` (Chi tiết)
-- **Mục tiêu:** Khách hàng có thể tra cứu toàn bộ các đơn hàng do mình tạo ra và xem lại chi tiết từng món đồ uống.
+### 3.5 Đặt đơn
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-19 | Tạo đơn hàng từ giỏ hàng | Must | POST /orders (có JWT) trả 201 với orderId, danh sách OrderItem, tổng tiền, trạng thái PENDING_PAYMENT; không có JWT trả 401; giỏ rỗng hoặc dữ liệu sai trả 400; tổng tiền do server tính lại, bỏ qua giá client gửi lên |
+| FR-20 | Kiểm tra và trừ tồn kho khi tạo đơn | Must | Nếu có món vượt tồn kho, toàn bộ đơn không được tạo, API trả 409 nêu rõ món hết hàng; tạo đơn và trừ kho nằm trong cùng một transaction (lỗi giữa chừng không để lại đơn mồ côi hay kho bị trừ sai) |
+| FR-21 | Lưu snapshot giá và tên sản phẩm tại thời điểm đặt | Should | Sau khi đổi giá sản phẩm, đơn cũ vẫn hiển thị giá lúc đặt |
+| FR-22 | Tự hủy đơn chưa thanh toán sau thời hạn và hoàn trả tồn kho | Should | Đơn PENDING_PAYMENT quá 15 phút (cấu hình được) chuyển sang CANCELLED và tồn kho được cộng lại; kiểm chứng bằng test với thời hạn rút ngắn |
+| FR-23 | Chọn hình thức nhận món (tại quầy hoặc mang đi) | Could | Đơn lưu trường pickupType; nhân viên thấy giá trị này trong danh sách đơn |
 
-#### Mô tả luồng xử lý và quy tắc nghiệp vụ:
-1. Khách hàng truy cập màn hình "Lịch sử đơn hàng".
-2. Frontend gọi API `GET /orders/me` kèm theo JWT Token.
-3. Backend truy vấn cơ sở dữ liệu, chỉ lấy danh sách các đơn hàng có `userId` khớp với tài khoản đang đăng nhập, sắp xếp theo thời gian mới nhất lên đầu (`createdAt DESC`).
-4. Hiển thị danh sách tóm tắt: Mã đơn (VD: `#1042`), ngày giờ tạo, tổng tiền và huy hiệu trạng thái với màu sắc tương ứng:
-   - `PENDING` (Chờ thanh toán)
-   - `PAID` (Đã thanh toán)
-   - `PAYMENT_FAILED` (Thanh toán thất bại)
-   - `PREPARING` (Đang pha chế)
-   - `READY` (Sẵn sàng nhận)
-   - `COMPLETED` (Đã hoàn tất)
-   - `CANCELLED` (Đã hủy)
-5. Khi người dùng bấm vào một đơn hàng, gọi API `GET /orders/:id` để xem chi tiết: danh sách sản phẩm, kích cỡ (S/M/L), danh sách topping, đơn giá từng món, số lượng, phương thức thanh toán và điểm thưởng nhận được (nếu có).
-6. Nếu tài khoản chưa từng đặt đơn hàng nào, hiển thị giao diện trạng thái trống (Empty State) kèm nút điều hướng quay lại trang Menu.
+### 3.6 Thanh toán
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-24 | Thanh toán bằng Ví mô phỏng | Must | POST /payments với phương thức WALLET cho đơn PENDING_PAYMENT: thành công thì Payment=SUCCESS và đơn chuyển sang PAID; số dư ví không đủ thì Payment=FAILED với mã lỗi rõ ràng |
+| FR-25 | Thanh toán bằng Thẻ mô phỏng | Must | Số thẻ test hợp lệ cho kết quả thành công; số thẻ test được quy ước cho kết quả thất bại; dữ liệu thẻ đầy đủ không được lưu trong DB và không xuất hiện trong log |
+| FR-26 | Idempotency khi gửi lại yêu cầu thanh toán | Must | Gửi hai lần POST /payments cùng Idempotency-Key cho cùng một đơn chỉ tạo đúng 1 bản ghi Payment và chỉ trừ tiền 1 lần; lần gửi lại trả kết quả giống lần đầu; có integration test chứng minh |
+| FR-27 | Xử lý thanh toán thất bại và cho phép thử lại | Must | Khi thất bại đơn vẫn ở trạng thái PENDING_PAYMENT hoặc PAYMENT_FAILED và không bị mất; UI hiển thị lý do và nút Thử lại; thử lại thành công thì đơn chuyển PAID; không thể thanh toán đơn đã PAID (trả 409) |
+| FR-28 | Hoàn tiền | Won't | Không thực hiện trong học phần này |
 
-#### Tiêu chí chấp nhận (Acceptance Criteria):
-- **AC-07.1:** API `GET /orders/me` chỉ trả về các đơn hàng thuộc sở hữu của chính user gửi token, không bị lộ đơn hàng của user khác.
-- **AC-07.2:** Danh sách đơn hàng hỗ trợ hiển thị đầy đủ 7 trạng thái, trong đó có huy hiệu trạng thái `PAYMENT_FAILED` cho các đơn thanh toán lỗi.
-- **AC-07.3:** Gọi `GET /orders/:id` với `id` của đơn hàng thuộc người khác -> Hệ thống phản hồi mã HTTP `403 Forbidden`.
-- **AC-07.4:** Khi tài khoản không có đơn hàng nào -> Frontend hiển thị giao diện Empty State thân thiện ("Bạn chưa có đơn hàng nào").
+### 3.7 Xác nhận, lịch sử và theo dõi đơn
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-29 | Hiển thị xác nhận đơn sau khi thanh toán thành công | Must | Màn hình xác nhận hiển thị mã đơn, danh sách món, tổng tiền, phương thức thanh toán, trạng thái; giỏ hàng được làm rỗng sau khi thanh toán thành công |
+| FR-30 | Xem lịch sử đơn hàng của tôi | Must | GET /orders/me trả danh sách đơn của người dùng hiện tại, sắp xếp mới nhất trước, có phân trang; không lẫn đơn của người khác; trạng thái rỗng hiển thị khi chưa có đơn |
+| FR-31 | Theo dõi trạng thái đơn gần thời gian thực | Must | Trang chi tiết đơn tự cập nhật trạng thái (polling tối đa 10 giây/lần) sau khi nhân viên đổi trạng thái; GET /orders/:id trả đúng trạng thái hiện tại |
+| FR-32 | Cập nhật trạng thái bằng kênh đẩy (WebSocket/SSE) | Could | Trạng thái thay đổi hiển thị trên máy khách trong ≤ 2 giây mà không cần tải lại |
 
----
+### 3.8 Quản lý trạng thái đơn (nhân viên) và quản trị
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| FR-33 | Nhân viên xem danh sách đơn đã thanh toán và lọc theo trạng thái | Must | GET /staff/orders (role STAFF) trả đơn lọc theo status; Customer gọi nhận 403 |
+| FR-34 | Nhân viên cập nhật trạng thái đơn theo đúng thứ tự cho phép | Must | PATCH /orders/:id/status chấp nhận PAID→PREPARING→READY→COMPLETED; chuyển trạng thái sai thứ tự (ví dụ PAID→COMPLETED) trả 400/409; mỗi lần đổi được ghi lại thời điểm và người thực hiện |
+| FR-35 | Quản lý sản phẩm, giá, tồn kho (thêm/sửa/ẩn) | Should | Admin tạo/sửa/ẩn sản phẩm qua API; sản phẩm bị ẩn biến mất khỏi menu khách; dữ liệu đầu vào được validate; Customer/Staff gọi nhận 403 |
+| FR-36 | Mã khuyến mãi (Promotion) áp dụng vào đơn | Could | Mã hợp lệ làm giảm tổng đúng theo quy tắc; mã hết hạn, sai hoặc vượt giới hạn dùng bị từ chối kèm lý do; giảm giá không làm tổng âm |
+| FR-37 | Tích điểm khách hàng (LoyaltyTransaction) | Could | Đơn PAID sinh một LoyaltyTransaction cộng điểm theo tỷ lệ cấu hình (ví dụ 1 điểm / 10.000 VND); đơn bị hủy không sinh điểm; số điểm xem được ở hồ sơ |
+| FR-38 | Báo cáo doanh thu theo ngày | Could | Admin xem tổng doanh thu và số đơn PAID trong ngày; số liệu khớp với dữ liệu seed trong test |
 
-### FR-08: Quản lý và theo dõi trạng thái đơn hàng (Order State Tracking & Lifecycle)
-- **Mã yêu cầu:** `FR-08`
-- **Tên yêu cầu:** Quản lý vòng đời và cập nhật trạng thái đơn hàng (Order State Tracking & Lifecycle)
-- **Tác nhân:** Khách hàng (Customer), Nhân viên quầy (Staff/Barista), Quản trị viên (Admin).
-- **Mức độ ưu tiên (MoSCoW):** **Must have**.
-- **API Endpoint:**
-  - `POST /orders/:id/cancel`: Khách hàng hủy đơn hợp lệ.
-  - `PATCH /orders/:id/status`: Nhân viên/Quản trị viên cập nhật trạng thái đơn hàng.
-- **Mục tiêu:** Quản lý các bước chuyển tiếp trạng thái đơn hàng theo máy trạng thái hữu hạn (State Machine), phân quyền rõ ràng giữa Khách hàng và Nhân viên, đồng thời hoàn trả tồn kho sản phẩm khi đơn bị hủy.
+## 4. Yêu cầu phi chức năng
 
-#### Mô hình chuyển tiếp trạng thái (State Transitions):
-- **Trạng thái hợp lệ:** `PENDING`, `PAID`, `PAYMENT_FAILED`, `PREPARING`, `READY`, `COMPLETED`, `CANCELLED`.
-- **Luồng chuẩn (Happy path):**
-  `PENDING` --(Khách thanh toán thành công)--> `PAID` --(Nhân viên nhận đơn)--> `PREPARING` --(Nhân viên pha xong)--> `READY` --(Nhân viên giao khách)--> `COMPLETED`
-- **Luồng ngoại lệ (Exceptions):**
-  - `PENDING` --(Thanh toán lỗi)--> `PAYMENT_FAILED`
-  - `PAYMENT_FAILED` --(Thanh toán lại thành công)--> `PAID`
-  - `PENDING` --(Khách hủy)--> `CANCELLED`
-  - `PAYMENT_FAILED` --(Khách/Hệ thống hủy)--> `CANCELLED`
-  - `PAID` --(Nhân viên/Khách hủy đơn trước khi pha chế)--> `CANCELLED`
+### 4.1 Hiệu năng
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| NFR-01 | Thời gian phản hồi API đọc | Must | Với 50 người dùng đồng thời trong 1 phút (k6/autocannon), GET /products và GET /products/:id có p95 ≤ 500 ms trên môi trường production |
+| NFR-02 | Tốc độ tải trang di động | Should | Lighthouse (mobile, throttle 4G) cho trang menu: Performance ≥ 80, LCP ≤ 2,5 s |
+| NFR-03 | Thời gian tạo đơn và thanh toán | Should | POST /orders và POST /payments có p95 ≤ 1.000 ms với 20 người dùng đồng thời |
 
-#### Quy tắc nghiệp vụ và phân quyền:
-1. **Phân quyền cập nhật trạng thái (`PATCH /orders/:id/status`):**
-   - Chỉ người dùng có vai trò Nhân viên (`STAFF`) hoặc Quản trị viên (`ADMIN`) mới được phép gọi API chuyển trạng thái đơn hàng sang `PREPARING`, `READY`, `COMPLETED`.
-   - Nếu tài khoản khách hàng thông thường (`CUSTOMER`) cố tình gọi API này, hệ thống trả về mã lỗi `403 Forbidden`.
-2. **Quy tắc máy trạng thái:**
-   - Mọi thao tác cập nhật trạng thái phải đi qua hàm kiểm tra chuyển tiếp hợp lệ (`assertTransition`). Chặn đứng mọi bước nhảy sai quy trình (ví dụ: nhảy từ `PENDING` thẳng sang `COMPLETED`) và ném lỗi HTTP `400 Bad Request`.
-   - `COMPLETED` và `CANCELLED` là trạng thái kết thúc (Terminal states), không thể chuyển tiếp sang bất kỳ trạng thái nào khác.
-3. **Quyền hủy đơn của khách hàng (`POST /orders/:id/cancel`):**
-   - Khách hàng chỉ được phép hủy đơn khi đơn ở trạng thái `PENDING` hoặc `PAYMENT_FAILED`.
-   - Khi đơn đã chuyển sang `PREPARING` hoặc các trạng thái sau, API từ chối cho khách hủy.
-4. **Cơ chế hoàn trả kho khi hủy đơn:**
-   - Khi đơn hàng chuyển sang `CANCELLED`, hệ thống tự động cộng hoàn trả lại số lượng từng món trong đơn vào trường `Product.stock` của sản phẩm trong cùng một Transaction để đảm bảo tính nhất quán dữ liệu.
-5. **Cơ chế cập nhật trạng thái phía người dùng:**
-   - Phía Frontend cập nhật trạng thái đơn hàng thông qua hành động tải lại trang của người dùng hoặc cơ chế polling tự động định kỳ (ví dụ mỗi 5-10 giây gọi refetch dữ liệu), không yêu cầu hạ tầng WebSocket/SSE thời gian thực phức tạp trong phạm vi MVP.
+### 4.2 Bảo mật
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| NFR-04 | Lưu mật khẩu an toàn | Must | Mật khẩu được băm bằng bcrypt (cost ≥ 10) hoặc argon2; kiểm tra DB không có mật khẩu dạng rõ; API không bao giờ trả trường password |
+| NFR-05 | Bảo vệ API bằng JWT | Must | Token ký bằng secret từ biến môi trường, có thời hạn (≤ 24 giờ); token sai chữ ký hoặc hết hạn bị từ chối 401; có test tự động cho cả hai trường hợp |
+| NFR-06 | Validate dữ liệu đầu vào ở frontend và backend | Must | Backend dùng DTO validation (class-validator) với whitelist, trường thừa bị loại bỏ; payload sai trả 400; truy vấn DB dùng ORM/tham số hóa nên chuỗi chứa SQL injection không làm thay đổi dữ liệu (có test) |
+| NFR-07 | Truyền tải qua HTTPS và cấu hình CORS | Must | URL production chỉ truy cập qua HTTPS (HTTP chuyển hướng sang HTTPS); CORS chỉ cho phép origin của frontend production |
+| NFR-08 | Quản lý secret | Must | Không có secret trong repository (quét bằng gitleaks hoặc tương đương không có phát hiện); chỉ có .env.example với giá trị mẫu; secret không in trong log CI |
+| NFR-09 | Giới hạn tần suất đăng nhập (rate limiting) | Should | Quá 5 lần đăng nhập sai trong 1 phút từ cùng IP trả 429 |
+| NFR-10 | Cơ sở dữ liệu không công khai | Must | PostgreSQL production không có địa chỉ public; kết nối từ máy ngoài mạng nội bộ bị từ chối |
 
-#### Tiêu chí chấp nhận (Acceptance Criteria):
-- **AC-08.1:** Chuyển trạng thái vi phạm quy trình State Machine (ví dụ: từ `PENDING` sang `READY`) -> Hệ thống phản hồi mã HTTP `400 Bad Request` ("Chuyển trạng thái đơn hàng không hợp lệ").
-- **AC-08.2:** Tài khoản `CUSTOMER` gọi API `PATCH /orders/:id/status` -> Hệ thống phản hồi mã HTTP `403 Forbidden` ("Chỉ nhân viên mới có quyền cập nhật trạng thái đơn").
-- **AC-08.3:** Tài khoản `STAFF` gọi API cập nhật trạng thái theo đúng luồng hợp lệ (`PAID` -> `PREPARING` -> `READY` -> `COMPLETED`) -> Hệ thống cập nhật thành công, trả về mã HTTP `200 OK`.
-- **AC-08.4:** Khi đơn hàng bị hủy (`CANCELLED`) qua `POST /orders/:id/cancel` -> Toàn bộ số lượng sản phẩm trong đơn được hoàn trả chính xác vào trường `stock` của bảng `Product`.
+### 4.3 Tính khả dụng
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| NFR-11 | Giao diện mobile-first | Must | Toàn bộ luồng từ menu đến xác nhận dùng được ở viewport 360×640 mà không cuộn ngang; nút bấm có vùng chạm tối thiểu 44×44 px |
+| NFR-12 | Hỗ trợ PWA | Should | Có manifest và service worker; Lighthouse PWA nhận diện cài đặt được; menu đã tải vẫn hiển thị khi mất mạng ở lần mở sau |
+| NFR-13 | Giao diện tiếng Việt và định dạng tiền VND | Should | Mọi giá hiển thị dạng 45.000 ₫; thông báo lỗi bằng tiếng Việt, dễ hiểu, không lộ chi tiết kỹ thuật |
+| NFR-14 | Khả năng truy cập và tương thích trình duyệt | Should | Lighthouse Accessibility ≥ 85; chạy đúng trên Chrome và Safari phiên bản mới nhất của Android/iOS |
+
+### 4.4 Độ tin cậy và toàn vẹn dữ liệu
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| NFR-15 | Không bán vượt tồn kho (chống race condition) | Must | Test tích hợp gửi 20 yêu cầu đặt đơn đồng thời cho sản phẩm tồn kho 5: tối đa 5 đơn thành công, tồn kho cuối cùng không âm |
+| NFR-16 | Tính nhất quán giữa đơn và thanh toán | Must | Không tồn tại đơn PAID mà không có Payment SUCCESS và ngược lại (truy vấn kiểm tra sau bộ test trả 0 dòng vi phạm) |
+| NFR-17 | Health check và khả dụng production | Must | GET /health trả 200 kèm trạng thái kết nối DB; URL production truy cập được tại thời điểm chấm; nền tảng tự khởi động lại container khi health check thất bại |
+
+### 4.5 Khả năng triển khai, vận hành và bảo trì
+| Mã | Yêu cầu | MoSCoW | Tiêu chí chấp nhận |
+|---|---|---|---|
+| NFR-18 | Chạy toàn hệ thống ở local bằng Docker | Must | Từ repository mới clone, lệnh docker compose up dựng được web, API và database; truy cập được menu theo README mà không cần cài thêm thành phần nào khác ngoài Docker |
+| NFR-19 | Migration và seed tái tạo được | Must | Chạy migration và seed trên database rỗng tạo đầy đủ schema và dữ liệu mẫu; chạy lại không gây lỗi hoặc nhân đôi dữ liệu |
+| NFR-20 | Pipeline CI chặn mã lỗi | Must | Khi mở pull request, CI chạy Install → Lint → Unit Test → Build; pull request không merge được nếu bất kỳ bước nào thất bại (có minh chứng một lần xanh và một lần đỏ) |
+| NFR-21 | Pipeline CD tự động triển khai | Must | Push/tag kích hoạt Lint & Test → Build Docker image (tag theo commit SHA hoặc semver) → Push registry → Deploy → Smoke test; migration chạy trước khi chuyển lưu lượng; smoke test gọi GET /health |
+| NFR-22 | Rollback khi triển khai thất bại | Must | Khi smoke test thất bại pipeline dừng với trạng thái lỗi; README mô tả các bước quay về image tag trước đó và đã thử rollback thành công ít nhất một lần |
+| NFR-23 | Ghi log có cấu trúc | Should | Mỗi request API ghi log gồm method, path, status, thời gian xử lý, request-id; log không chứa mật khẩu, token hay dữ liệu thẻ |
+| NFR-24 | Kiểm thử tự động | Should | Unit test cho nghiệp vụ trọng yếu (tính tiền, state machine đơn, tồn kho) đạt độ phủ dòng ≥ 70% ở các module này; có integration test cho tạo đơn/thanh toán và ít nhất 1 test E2E từ menu đến xác nhận đơn |
+| NFR-25 | Chuẩn mã nguồn và quy trình | Should | ESLint/Prettier không có lỗi; commit theo quy ước (ví dụ Conventional Commits); backend tổ chức theo module domain (auth, products, orders, payments) |
+
+## 5. Nội dung không thực hiện (Won't)
+| Mã | Nội dung | Lý do |
+|---|---|---|
+| FR-28 | Hoàn tiền | Ngoài phạm vi MVP, thanh toán chỉ mô phỏng |
+| FR-39 | Thanh toán thật qua cổng như VNPay, MoMo, Stripe | Chỉ dùng dịch vụ thanh toán mô phỏng |
+| FR-40 | Quên mật khẩu, đăng nhập mạng xã hội (OAuth) | Không thuộc luồng nghiệp vụ tối thiểu |
+| FR-41 | Giao hàng tận nơi, theo dõi shipper | Chỉ nhận món tại quầy |
+| FR-42 | Đa chi nhánh, đa tiền tệ, đa ngôn ngữ | Một cửa hàng, VND, tiếng Việt |
+| FR-43 | Push notification | Chỉ cập nhật trạng thái trong ứng dụng |
+
+## 6. Tổng hợp theo mức ưu tiên
+| MoSCoW | Yêu cầu chức năng | Yêu cầu phi chức năng |
+|---|---|---|
+| Must | FR-01, 02, 03, 06, 07, 08, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 24, 25, 26, 27, 29, 30, 31, 33, 34 | NFR-01, 04, 05, 06, 07, 08, 10, 11, 15, 16, 17, 18, 19, 20, 21, 22 |
+| Should | FR-04, 13, 21, 22, 35 | NFR-02, 03, 09, 12, 13, 14, 23, 24, 25 |
+| Could | FR-05, 09, 23, 32, 36, 37, 38 | – |
+| Won't | FR-28, 39, 40, 41, 42, 43 | – |
+
+## 7. Use-case tổng quát (căn cứ để vẽ sơ đồ)
+| Mã UC | Use-case | Actor | Yêu cầu liên quan |
+|---|---|---|---|
+| UC-01 | Xem menu và chi tiết sản phẩm | Khách vãng lai, Khách hàng | FR-01 đến FR-08 |
+| UC-02 | Quản lý giỏ hàng | Khách vãng lai, Khách hàng | FR-10 đến FR-13 |
+| UC-03 | Đăng ký / Đăng nhập | Khách hàng | FR-14 đến FR-18 |
+| UC-04 | Đặt và thanh toán đơn hàng (use-case trọng tâm cho Task 1.3) | Khách hàng, Payment Service | FR-19 đến FR-22, FR-24 đến FR-27, FR-29 |
+| UC-05 | Xem lịch sử và theo dõi đơn | Khách hàng | FR-30, FR-31, FR-32 |
+| UC-06 | Xử lý và cập nhật trạng thái đơn | Nhân viên quầy | FR-33, FR-34 |
+| UC-07 | Quản lý sản phẩm, khuyến mãi, báo cáo | Quản lý/Admin | FR-35 đến FR-38 |
+
+Ghi chú: NFR áp dụng xuyên suốt cho mọi use-case; sẽ được đưa vào cột Test của docs/traceability-matrix.md.
