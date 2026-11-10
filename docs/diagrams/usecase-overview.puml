@@ -1,40 +1,43 @@
 @startuml usecase-overview
 ' BrewLite - So do use-case tong quat (Task 1.2)
-' Nguon: docs/requirements/use-case-overview.md
+' Mo ta: docs/requirements/use-case-overview.md
 left to right direction
 skinparam packageStyle rectangle
 skinparam actorStyle awesome
+skinparam shadowing false
 skinparam usecase {
   BackgroundColor #FFF8EE
   BorderColor #8A5A2B
+  BackgroundColor<<mở rộng>> #F2F2F2
+  BorderColor<<mở rộng>> #888888
 }
-skinparam shadowing false
 
 actor "Khách vãng lai" as Guest
 actor "Khách hàng\n(đã đăng nhập)" as Customer
-actor "Nhân viên quầy\n(Barista)" as Staff
+actor "Nhân viên quầy\n(STAFF)" as Staff
 actor "Quản lý cửa hàng" as Manager
-actor "Payment Service\n(mô phỏng Ví/Thẻ)" as Pay <<system>>
+actor "Cổng thanh toán\n(VNPay sandbox)" as Pay <<system>>
 
 Customer -|> Guest
+Manager -|> Staff
 
-rectangle "BrewLite" {
+rectangle "BrewLite (web)" {
   package "MVP" {
     usecase "UC-02 Xem menu" as UC02
-    usecase "UC-03 Xem chi tiết &\nchọn size/topping" as UC03
+    usecase "UC-03 Xem chi tiết,\nchọn size và topping" as UC03
     usecase "UC-04 Quản lý giỏ hàng" as UC04
     usecase "UC-05 Đăng ký" as UC05
     usecase "UC-06 Đăng nhập" as UC06
     usecase "UC-01 Đặt và thanh toán\nđơn hàng" as UC01
     usecase "Xác thực JWT" as AUTH
-    usecase "UC-10 Áp mã khuyến mãi" as UC10
-    usecase "UC-07 Xem lịch sử &\nchi tiết đơn" as UC07
-    usecase "UC-08 Theo dõi trạng thái đơn" as UC08
-    usecase "UC-09 Hủy đơn" as UC09
+    usecase "UC-07 Xem lịch sử và\nchi tiết đơn" as UC07
+    usecase "UC-08 Theo dõi\ntrạng thái đơn" as UC08
+    usecase "UC-09 Hủy đơn\nchưa thanh toán" as UC09
+    usecase "UC-11 Xem và cập nhật\ntrạng thái pha chế" as UC11
   }
-  package "Mở rộng (ngoài MVP)" {
-    usecase "UC-11 Cập nhật trạng thái\npha chế" as UC11
-    usecase "UC-12 Quản lý sản phẩm,\nkhuyến mãi, tồn kho" as UC12
+  package "Mở rộng" {
+    usecase "UC-10 Áp mã khuyến mãi" as UC10 <<mở rộng>>
+    usecase "UC-12 Quản lý menu\nvà khuyến mãi" as UC12 <<mở rộng>>
   }
 }
 
@@ -46,7 +49,6 @@ Guest --> UC06
 
 Customer --> UC01
 Customer --> UC07
-Customer --> UC08
 Customer --> UC09
 
 UC01 --> Pay
@@ -54,16 +56,16 @@ UC01 --> Pay
 UC01 ..> AUTH : <<include>>
 UC07 ..> AUTH : <<include>>
 UC09 ..> AUTH : <<include>>
-UC10 ..> UC01 : <<extend>>
+UC11 ..> AUTH : <<include>>
 UC08 ..> UC07 : <<extend>>
+UC10 ..> UC01 : <<extend>>
 
 Staff --> UC11
 Manager --> UC12
-Manager -|> Staff
 
 note bottom of UC01
   Use-case trọng tâm (Task 1.3).
-  Bao gồm tạo đơn PENDING, giữ chỗ tồn kho,
-  thanh toán idempotent, cập nhật PAID/PAYMENT_FAILED.
+  Tạo đơn PENDING_PAYMENT và trừ kho trong một transaction,
+  chuyển sang VNPay, nhận kết quả: PAID hoặc hủy đơn và hoàn kho.
 end note
 @enduml
