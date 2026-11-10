@@ -1,8 +1,8 @@
-\# 1. Vấn đề nghiệp vụ (Business Problem)
+# 1. Vấn đề nghiệp vụ (Business Problem)
 
 
 
-\## 1.1. Bối cảnh nghiệp vụ
+## 1.1. Bối cảnh nghiệp vụ
 
 
 
@@ -18,7 +18,7 @@ BrewLite được xây dựng nhằm giải quyết những vấn đề trên th
 
 
 
-\## 1.2. Mô tả vấn đề nghiệp vụ
+## 1.2. Mô tả vấn đề nghiệp vụ
 
 
 
@@ -42,11 +42,11 @@ Vì vậy, BrewLite được phát triển nhằm cải thiện trải nghiệm 
 
 
 
-\# 2. Xác định các bên liên quan (Stakeholder Identification)
+# 2. Xác định các bên liên quan (Stakeholder Identification)
 
 
 
-\## 2.1. Bảng các bên liên quan
+## 2.1. Bảng các bên liên quan
 
 
 
@@ -65,4 +65,8 @@ Vì vậy, BrewLite được phát triển nhằm cải thiện trải nghiệm 
 | Quản trị viên hệ thống (System Administrator) | Người chịu trách nhiệm quản lý và duy trì hệ thống. | Quản lý tài khoản người dùng, cấu hình hệ thống và đảm bảo hệ thống hoạt động ổn định. |
 
 | Nhóm phát triển (Development Team) | Nhóm chịu trách nhiệm xây dựng và bảo trì hệ thống BrewLite. | Nắm rõ yêu cầu, triển khai chức năng, kiểm thử và đảm bảo chất lượng phần mềm. |
+
+| Giảng viên (Instructor) | Người đưa ra yêu cầu bài tập và đánh giá kết quả thực hiện dự án. | Đảm bảo hệ thống đáp ứng yêu cầu bài tập, đánh giá tài liệu và sản phẩm của nhóm. |
+
+| Cổng thanh toán mô phỏng (Mock Payment Gateway) | Hệ thống bên ngoài hỗ trợ xử lý các giao dịch thanh toán mô phỏng. | Tiếp nhận yêu cầu thanh toán và trả về kết quả giao dịch thành công hoặc thất bại. |
 
