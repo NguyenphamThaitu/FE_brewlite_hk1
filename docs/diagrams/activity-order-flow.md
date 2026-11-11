@@ -1,62 +1,42 @@
-# Activity diagram – Luồng đặt món và thanh toán end-to-end (BrewLite)
+# Activity diagram – Luồng đặt món và thanh toán (BrewLite)
 
 > Task 2.1 · Người thực hiện: Trần Minh Trí (3124410371) · Reviewer: Quách Văn Trường  
 > Nguồn: [`activity-order-flow.puml`](activity-order-flow.puml) · Kết xuất: [`activity-order-flow.svg`](activity-order-flow.svg)  
-> Căn cứ: Bối cảnh & phạm vi [`context-and-scope.md`](../requirements/context-and-scope.md), tài liệu đặc tả yêu cầu [`srs.md`](../requirements/srs.md) (FR-18 → FR-27, FR-30, FR-33, FR-34), đặc tả use-case [`use-case-order-payment.md`](../requirements/use-case-order-payment.md) (UC-01), và các quyết định kiến trúc [`ADR-006`](../architecture/adr/006-inventory-transaction-row-locking.md), [`ADR-008`](../architecture/adr/008-simulated-wallet-card-payment.md).
+> Căn cứ đề bài: Mục 1.1 (Luồng tối thiểu) & Mục 4.1 (Yêu cầu Activity diagram).
 
-![Activity diagram Luồng đặt món và thanh toán end-to-end](activity-order-flow.svg)
-
----
-
-## 1. Phân vùng trách nhiệm (5 Phân làn - Swimlanes)
-
-Sơ đồ hoạt động bao gồm 5 phân làn thể hiện rành mạch sự phối hợp giữa tác nhân người dùng, hệ thống phần mềm và dịch vụ bên thứ ba:
-
-| Phân làn (Swimlane) | Vai trò | Trách nhiệm chi tiết |
-|---------------------|---------|----------------------|
-| **Khách hàng (`Customer`)** | Tác nhân chính | Xem thực đơn, tùy biến kích cỡ (Size S/M/L) và Topping, thêm vào giỏ hàng, xác nhận đặt hàng, thực hiện thanh toán, theo dõi tiến trình và nhận đồ uống tại quầy. |
-| **Giao diện Next.js (`Frontend`)** | Tầng trình diễn (Client Web App) | Quản lý trạng thái giỏ hàng cục bộ (`localStorage`), kiểm tra phiên đăng nhập và điều hướng bảo toàn giỏ hàng, sinh `Idempotency-Key` (UUIDv4), gửi request tạo đơn, xóa giỏ hàng khi thành công, polling cập nhật trạng thái đơn (mỗi 5–10s). |
-| **NestJS API & Database (`Backend`)** | Tầng nghiệp vụ & Dữ liệu | Xác thực `JwtAuthGuard`, validate DTO, tính lại tổng tiền phía server (chống gian lận giá), mở Database Transaction với cơ chế khóa dòng bi quan (`SELECT ... FOR UPDATE`), quản lý máy trạng thái đơn hàng (`PENDING_PAYMENT` → `PAID` → `PREPARING` → `READY` → `COMPLETED`). |
-| **Cổng thanh toán (`PaymentGateway`)** | Dịch vụ thanh toán mô phỏng | Giả lập xử lý thanh toán Ví điện tử (`WALLET`) và Thẻ ngân hàng (`CARD`), kiểm tra số dư và hạn mức, trả về mã trạng thái thành công hoặc thất bại có kiểm soát. |
-| **Nhân viên quầy (`Barista`)** | Tác nhân vận hành quầy | Đăng nhập tài khoản nhân viên (`STAFF`), xem hàng đợi đơn đã thanh toán (`GET /orders?status=PAID`), nhận đơn pha chế (`PREPARING`), đóng gói khi xong (`READY`) và xác nhận trao đồ uống cho khách (`COMPLETED`). |
+![Activity diagram Luồng đặt món và thanh toán](activity-order-flow.svg)
 
 ---
 
-## 2. Diễn giải chi tiết các nhánh rẽ và xử lý ngoại lệ (Exceptions)
+## 1. Bám sát luồng nghiệp vụ tối thiểu của Đề bài (Mục 1.1)
 
-Sơ đồ đáp ứng đầy đủ điểm bắt đầu (`start`), điểm kết thúc (`stop`), và **3 nhánh rẽ ngoại lệ bắt buộc** theo đúng yêu cầu đồ án (Mục 4.1):
+Sơ đồ thể hiện trực quan và chuẩn xác chuỗi 6 bước nghiệp vụ tối thiểu được quy định trong đề bài:
+$$\text{Xem menu} \longrightarrow \text{Chọn tùy chọn} \longrightarrow \text{Giỏ hàng} \longrightarrow \text{Đặt đơn} \longrightarrow \text{Thanh toán} \longrightarrow \text{Theo dõi đơn}$$
 
-### Nhánh ngoại lệ 1: Người dùng chưa đăng nhập (Unauthenticated)
-- Khi khách hàng nhấn *"Đặt hàng / Thanh toán"*, giao diện Next.js kiểm tra token trong client storage.
-- Nếu chưa có token, khách hàng được chuyển hướng sang màn hình Đăng nhập (`POST /auth/login`).
-- Sau khi đăng nhập thành công, hệ thống cấp JWT Token, lưu vào bộ nhớ client, **bảo toàn nguyên vẹn các món trong giỏ hàng** và tự động quay lại luồng đặt đơn mà không bắt khách phải chọn lại từ đầu.
-
-### Nhánh ngoại lệ 2: Hết hàng hoặc không đủ tồn kho nguyên liệu (Out of Stock / Shortage - FR-19, FR-20)
-- Backend mở Transaction, khóa dòng kiểm tra số lượng tồn kho nguyên liệu theo công thức món × size (`SELECT ... FROM "Ingredient" FOR UPDATE`).
-- Nếu số lượng tồn kho trong database không đủ đáp ứng, Backend thực hiện **`ROLLBACK TRANSACTION`**, trả về mã lỗi `409 Conflict` kèm danh sách nguyên liệu thiếu (`shortages`).
-- Giao diện Next.js hiển thị thông báo chi tiết món hết hàng để khách hàng điều chỉnh lại số lượng hoặc chọn món khác.
-
-### Nhánh ngoại lệ 3: Thanh toán thất bại (Payment Failed - FR-27, ADR-008)
-- Khi Cổng thanh toán trả về kết quả thất bại (Ví thiếu tiền, Thẻ bị từ chối hoặc hết hạn):
-  - Backend cập nhật trạng thái giao dịch `Payment` sang `FAILED`.
-  - Đơn hàng được cập nhật sang trạng thái **`PAYMENT_FAILED`** (thay vì hủy ngay lập tức).
-  - **Đặc biệt:** Hệ thống **giữ nguyên tồn kho nguyên liệu** để bảo đảm quyền lợi đặt món cho khách.
-  - Backend trả về phản hồi `200 OK` kèm cờ `canRetry: true`.
-- Giao diện Next.js hiển thị thông báo lỗi và đưa ra 2 lựa chọn cho khách hàng:
-  1. **Thanh toán lại:** Khách đổi phương thức thanh toán hoặc đổi thẻ và gửi lại yêu cầu thanh toán mới.
-  2. **Hủy đơn hàng:** Khách bấm *"Hủy đơn hàng"*, Backend mở Transaction cập nhật đơn sang `CANCELLED` và **tự động hoàn trả nguyên liệu vào kho** theo đúng `ingredientUsage` đã lưu.
+Các phân làn trách nhiệm (Swimlanes):
+- **Khách hàng (`Customer`):** Tác nhân người dùng thao tác duyệt menu, chọn size/topping, đặt đơn, chọn cách thanh toán và theo dõi tiến trình đơn.
+- **Giao diện Next.js (`Frontend`):** Quản lý trạng thái giỏ hàng (`localStorage`), chuyển hướng đăng nhập bảo toàn giỏ hàng, sinh `Idempotency-Key` (UUIDv4), gửi request API và hiển thị kết quả.
+- **NestJS API & Database (`Backend`):** Xác thực JWT, validate DTO, tính lại tổng tiền server, quản lý transaction với khóa dòng bi quan (`SELECT ... FOR UPDATE`), trừ kho và quản lý trạng thái đơn hàng.
+- **Cổng thanh toán (`PaymentGateway`):** Giả lập trừ số dư Ví (`WALLET`) hoặc xác thực Thẻ (`CARD`), trả kết quả thành công/thất bại có kiểm soát.
 
 ---
 
-## 3. Bảng đối chiếu tiêu chí nghiệm thu Task 2.1 của Đề bài
+## 2. Xử lý 3 nhánh ngoại lệ bắt buộc (Mục 4.1)
+
+1. **Nhánh Chưa đăng nhập:** Khi khách bấm đặt đơn mà chưa có token, chuyển hướng sang màn hình Đăng nhập (`POST /auth/login`), cấp JWT và **bảo toàn nguyên vẹn giỏ hàng** để tiếp tục đặt hàng.
+2. **Nhánh Hết hàng / Thiếu nguyên liệu:** Backend khóa dòng kiểm tra kho, nếu không đủ thì **Rollback Transaction**, trả mã lỗi `409 Conflict` (FR-20) để giao diện báo cho khách cập nhật lại giỏ hàng.
+3. **Nhánh Thanh toán thất bại:** Khi Ví thiếu tiền hoặc Thẻ bị từ chối, đơn chuyển sang trạng thái **`PAYMENT_FAILED`** (FR-27), **giữ nguyên tồn kho nguyên liệu**; khách có thể bấm *"Thanh toán lại"* hoặc *"Hủy đơn để hoàn kho"*.
+
+---
+
+## 3. Bảng đối chiếu tiêu chí nghiệm thu Task 2.1
 
 | Tiêu chí đề bài yêu cầu (Mục 4.1) | Thể hiện trên sơ đồ | Căn cứ trong dự án |
 |-----------------------------------|---------------------|-------------------|
-| **Điểm bắt đầu và kết thúc** | Có `start` (Mở ứng dụng) và `stop` (Nhận đồ uống thành công / Hủy đơn). | Mục 4.1 đề bài |
-| **Hành động người dùng & hệ thống** | Phân định rạch ròi qua từng ô hành động trên từng phân làn tương ứng. | Luồng nghiệp vụ tối thiểu |
-| **Decision / Merge các nhánh** | Sử dụng cấu trúc `if (...) then (...) else (...) endif` chuẩn UML cho cả 3 điểm rẽ nhánh. | PlantUML Activity Beta |
-| **Swimlane đa thành phần** | Đầy đủ 5 làn: `Customer`, `Frontend`, `Backend`, `PaymentGateway`, `Barista`. | Đề tài đa tác nhân |
-| **Trường hợp chưa đăng nhập** | Rẽ nhánh 1: Chuyển hướng đăng nhập, cấp JWT và bảo toàn giỏ hàng. | FR-18 |
-| **Trường hợp hết hàng** | Rẽ nhánh 2: Kiểm tra kho khóa dòng, Rollback và trả mã lỗi 409 Conflict. | FR-19, FR-20, ADR-006 |
-| **Trường hợp thanh toán thất bại** | Rẽ nhánh 3: Chuyển `PAYMENT_FAILED`, giữ kho, cho phép thanh toán lại hoặc hủy đơn hoàn kho. | FR-27, ADR-008 |
-
+| **Điểm bắt đầu & kết thúc** | Có `start` (Mở ứng dụng) và `stop` (Theo dõi đơn sau thanh toán / Hủy đơn). | Mục 4.1 & Mục 1.1 |
+| **Hành động người dùng & hệ thống** | Phân định rạch ròi qua 4 phân làn (`Customer`, `Frontend`, `Backend`, `PaymentGateway`). | Bảng stakeholder |
+| **Decision / Merge rẽ nhánh** | Cấu trúc `if (...) then (...) else (...) endif` chuẩn UML cho cả 3 điểm rẽ nhánh. | PlantUML Activity |
+| **Swimlane đa thành phần** | 4 phân làn trọng tâm, tập trung luồng mua sắm của khách. | Mục 4.1 |
+| **Nhánh chưa đăng nhập** | Rẽ nhánh 1: Chuyển hướng đăng nhập, cấp JWT và bảo toàn giỏ hàng. | FR-18 |
+| **Nhánh hết hàng** | Rẽ nhánh 2: Kiểm tra kho khóa dòng, Rollback và trả mã lỗi 409 Conflict. | FR-19, FR-20, ADR-006 |
+| **Nhánh thanh toán thất bại** | Rẽ nhánh 3: Chuyển `PAYMENT_FAILED`, giữ kho, cho phép thanh toán lại hoặc hủy đơn hoàn kho. | FR-27, ADR-008 |
