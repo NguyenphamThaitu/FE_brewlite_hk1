@@ -1,0 +1,172 @@
+@startuml class-domain
+' BrewLite - Class diagram muc domain (Task 2.3)
+' Bam theo apps/api/prisma/schema.prisma. Mo ta: docs/diagrams/class-domain.md
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam class {
+  BackgroundColor #FFF8EE
+  BorderColor #8A5A2B
+  BackgroundColor<<mở rộng>> #F2F2F2
+  BorderColor<<mở rộng>> #888888
+}
+skinparam enum {
+  BackgroundColor #EEF5FF
+  BorderColor #3A6EA5
+}
+
+package "Enum" {
+  enum Role {
+    CUSTOMER
+    STAFF
+  }
+  enum OrderStatus {
+    PENDING_PAYMENT
+    PAID
+    PREPARING
+    READY
+    COMPLETED
+    CANCELLED
+  }
+  enum PaymentStatus {
+    PENDING
+    SUCCESS
+    FAILED
+  }
+}
+
+class User {
+  + id : Int
+  + email : String {unique}
+  + passwordHash : String
+  + fullName : String
+  + role : Role
+  + createdAt : DateTime
+}
+
+package "Menu" {
+  class Product {
+    + id : Int
+    + name : String
+    + description : String
+    + basePrice : Int
+    + imageUrl : String [0..1]
+    + category : String
+    + isActive : Boolean
+  }
+  class Size {
+    + id : Int
+    + name : String
+    + extraPrice : Int
+    + recipeMultiplier : Decimal
+  }
+  class Topping {
+    + id : Int
+    + name : String
+    + price : Int
+    + ingredientQty : Decimal
+  }
+}
+
+package "Kho nguyên liệu" {
+  class Ingredient {
+    + id : Int
+    + name : String
+    + unit : String
+    + quantity : Decimal
+  }
+  class ProductIngredient {
+    + quantity : Decimal
+  }
+}
+
+package "Đơn hàng và thanh toán" {
+  class Order {
+    + id : Int
+    + status : OrderStatus
+    + totalAmount : Int
+    + ingredientUsage : Json
+    + createdAt : DateTime
+  }
+  class OrderItem {
+    + id : Int
+    + productId : Int
+    + productName : String
+    + sizeName : String
+    + toppings : Json
+    + unitPrice : Int
+    + quantity : Int
+    + lineTotal : Int
+  }
+  class Payment {
+    + id : Int
+    + method : String = "VNPAY"
+    + amount : Int
+    + status : PaymentStatus
+    + txnRef : String {unique}
+    + vnpTransactionNo : String [0..1]
+    + responseCode : String [0..1]
+    + createdAt : DateTime
+    + paidAt : DateTime [0..1]
+  }
+}
+
+package "Mở rộng (chưa có trong schema)" {
+  class Promotion <<mở rộng>> {
+    + code : String {unique}
+    + discountPercent : Int
+    + expiresAt : DateTime
+    + usageLimit : Int
+    + usedCount : Int
+  }
+  class LoyaltyTransaction <<mở rộng>> {
+    + id : Int
+    + points : Int
+    + createdAt : DateTime
+  }
+}
+
+User "1" -- "0..*" Order : đặt >
+Order "1" *-- "1..*" OrderItem : gồm >
+OrderItem "0..*" ..> "1" Product : productId (bản chụp) >
+Order "1" *-- "0..*" Payment : thanh toán qua >
+
+Product "1" -- "0..*" ProductIngredient
+ProductIngredient "0..*" -- "1" Ingredient
+Topping "0..*" --> "1" Ingredient : dùng >
+Order ..> Ingredient : ingredientUsage\n(lượng đã trừ kho)
+
+Order "0..*" ..> "0..1" Promotion : áp dụng >
+User "1" *.. "0..*" LoyaltyTransaction : sở hữu >
+LoyaltyTransaction "0..1" ..> "1" Order : phát sinh từ >
+
+note bottom of Promotion
+  FR-36: mã hết hạn, sai hoặc vượt usageLimit bị từ chối;
+  giảm giá không làm tổng âm.
+end note
+
+note bottom of LoyaltyTransaction
+  FR-37: mỗi đơn PAID sinh 1 giao dịch cộng điểm
+  (ví dụ 1 điểm / 10.000đ); đơn bị hủy không sinh điểm.
+end note
+
+note right of Order
+  totalAmount = tổng OrderItem.lineTotal, tính lại ở server.
+  Tạo đơn: khóa Ingredient, trừ kho, status = PENDING_PAYMENT.
+  PENDING_PAYMENT → PAID (VNPay báo thành công)
+  PENDING_PAYMENT → CANCELLED (khách hủy hoặc thanh toán lỗi,
+                               hoàn kho theo ingredientUsage)
+  PAID → PREPARING → READY → COMPLETED (chỉ STAFF)
+end note
+
+note bottom of Payment
+  Gọi lại khi đã có Payment PENDING thì dùng lại txnRef.
+  Kết quả VNPay chỉ xử lý khi Payment còn PENDING,
+  nên gọi lặp không cập nhật đơn lần hai.
+end note
+
+note bottom of ProductIngredient
+  Công thức cho 1 ly size chuẩn.
+  Lượng cần = quantity × Size.recipeMultiplier × số ly.
+end note
+@enduml
