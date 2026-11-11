@@ -7,13 +7,12 @@
 
 ## 0. Tài liệu làm căn cứ
 
-| Tài liệu | Người viết | Trạng thái (10/11) | Dùng cho |
+| Tài liệu | Người viết | Trạng thái (11/11) | Dùng cho |
 |----------|-----------|--------------------|----------|
 | [`scope-assumptions-risks.md`](scope-assumptions-risks.md) | Thái Tú | Đã merge (PR #7) | Phạm vi MVP / mở rộng, chỉ làm web, thanh toán mô phỏng Ví/Thẻ |
 | [`context-and-scope.md`](context-and-scope.md) | Anh Vũ | Đã merge (PR #10, #11) | Danh sách stakeholder → tác nhân |
 | [`use-case-order-payment.md`](use-case-order-payment.md) | Anh Vũ | Đã merge (PR #10) | UC-01 và tác nhân Payment Gateway |
-| [`srs.md`](srs.md) (FR-05 → FR-08) | Minh Trí | Đã merge (PR #1) | Đặt đơn, thanh toán, lịch sử, trạng thái, hủy đơn, vai trò nhân viên |
-| `ssr.md` (FR-01 → FR-38) | Hữu Mẫn | Nhánh `Man`, chưa mở PR | Menu, chi tiết sản phẩm, giỏ hàng, xác thực |
+| [`srs.md`](srs.md) (FR-01 → FR-43, UC-01 → UC-07) | Minh Trí, Hữu Mẫn; Tuấn Vỹ gộp và đánh số lại | Đã merge (PR #1, PR #15) | Mã FR ở cột *Yêu cầu liên quan*, tác nhân, vòng đời đơn |
 
 ## 1. Tác nhân
 
@@ -30,24 +29,25 @@ chức năng nghiệp vụ nên không phải tác nhân trên sơ đồ.
 
 ## 2. Danh sách use-case
 
-| Mã | Use-case | Tác nhân | Phạm vi | Yêu cầu liên quan (nguồn) |
-|----|----------|----------|---------|---------------------------|
-| UC-01 | Đặt và thanh toán đơn hàng | Khách hàng, Payment Gateway | MVP | FR-05, FR-06 (Minh Trí) · FR-25 → FR-27 (Hữu Mẫn) |
-| UC-02 | Xem menu | Khách vãng lai | MVP | FR-01 → FR-08 (Hữu Mẫn) |
-| UC-03 | Xem chi tiết, chọn size và topping | Khách vãng lai | MVP | FR-09 → FR-16 (Hữu Mẫn) |
-| UC-04 | Quản lý giỏ hàng | Khách vãng lai | MVP | FR-17 → FR-24 (Hữu Mẫn) |
-| UC-05 | Đăng ký | Khách vãng lai | MVP | FR-28, FR-29 (Hữu Mẫn) |
-| UC-06 | Đăng nhập | Khách vãng lai | MVP | FR-30 → FR-33, FR-36 (Hữu Mẫn) |
-| UC-07 | Xem lịch sử và chi tiết đơn | Khách hàng | MVP | FR-07 (Minh Trí) |
-| UC-08 | Theo dõi trạng thái đơn (tải lại trang hoặc polling) | Khách hàng | MVP | FR-08, quy tắc 5 (Minh Trí) |
-| UC-09 | Hủy đơn khi chưa thanh toán xong | Khách hàng | MVP | FR-08, quy tắc 3 (Minh Trí) |
-| UC-10 | Áp mã khuyến mãi | Khách hàng | Mở rộng | Chưa có FR |
-| UC-11 | Cập nhật trạng thái đơn | Nhân viên quầy | MVP | FR-08, quy tắc 1 (Minh Trí) |
-| UC-12 | Quản lý menu | Quản lý cửa hàng | Mở rộng | Chưa có FR |
+| Mã | Use-case | Tác nhân | Phạm vi | Yêu cầu liên quan (`srs.md`) | Nhóm UC trong SRS |
+|----|----------|----------|---------|------------------------------|-------------------|
+| UC-01 | Đặt và thanh toán đơn hàng | Khách hàng, Payment Gateway | MVP | FR-18 → FR-21, FR-24 → FR-27, FR-29 | UC-04 |
+| UC-02 | Xem menu | Khách vãng lai | MVP | FR-01 → FR-05 | UC-01 |
+| UC-03 | Xem chi tiết, chọn size và topping | Khách vãng lai | MVP | FR-06 → FR-09 | UC-01 |
+| UC-04 | Quản lý giỏ hàng | Khách vãng lai | MVP | FR-10 → FR-13 | UC-02 |
+| UC-05 | Đăng ký | Khách vãng lai | MVP | FR-14 | UC-03 |
+| UC-06 | Đăng nhập | Khách vãng lai | MVP | FR-15, FR-16 | UC-03 |
+| UC-07 | Xem lịch sử và chi tiết đơn | Khách hàng | MVP | FR-30 | UC-05 |
+| UC-08 | Theo dõi trạng thái đơn (tải lại trang hoặc polling) | Khách hàng | MVP | FR-31, FR-32 | UC-05 |
+| UC-09 | Hủy đơn khi chưa thanh toán xong | Khách hàng | MVP | FR-22, FR-27; vòng đời đơn (SRS mục 2.2) | UC-04 |
+| UC-10 | Áp mã khuyến mãi | Khách hàng | Mở rộng | FR-36 | UC-07 |
+| UC-11 | Cập nhật trạng thái đơn | Nhân viên quầy | MVP | FR-33, FR-34 | UC-06 |
+| UC-12 | Quản lý menu | Quản lý cửa hàng | Mở rộng | FR-35 | UC-07 |
 
 Căn cứ phạm vi: tài liệu phạm vi xếp "Nhân viên/quản lý cập nhật trạng thái đơn" vào MVP; "Khuyến mãi"
-và "Quản lý menu cho quản lý cửa hàng" vào phạm vi mở rộng. Căn cứ khách vãng lai: FR-17, FR-35 của
-Hữu Mẫn ghi menu, chi tiết và giỏ hàng dùng được khi chưa đăng nhập.
+và "Quản lý menu cho quản lý cửa hàng" vào phạm vi mở rộng; SRS xếp FR-35 mức Should, FR-36 mức Could.
+Căn cứ khách vãng lai: SRS mục 2.1 ghi khách vãng lai xem menu, chi tiết sản phẩm, thêm vào giỏ khi
+chưa đăng nhập; FR-18 yêu cầu đăng nhập khi đặt đơn.
 
 UC-01 khớp mã và tên với đặc tả chi tiết của Anh Vũ ([`use-case-order-payment.md`](use-case-order-payment.md)) và với mẫu ma trận truy vết của đề
 (`UC-01 Thanh toán`).
@@ -56,16 +56,16 @@ UC-01 khớp mã và tên với đặc tả chi tiết của Anh Vũ ([`use-case
 
 | Quan hệ | Ý nghĩa | Căn cứ |
 |---------|---------|--------|
-| UC-01, UC-07, UC-09, UC-11 `<<include>>` Xác thực JWT | Bắt buộc đã đăng nhập; chưa đăng nhập thì chuyển sang UC-06. | FR-05, FR-07 (Trí); FR-25, FR-35 (Mẫn) |
-| UC-08 `<<extend>>` UC-07 | Từ lịch sử/chi tiết đơn, khách xem trạng thái hiện tại. | FR-07, FR-08 (Trí) |
-| UC-10 `<<extend>>` UC-01 | Nhập mã khuyến mãi khi đặt đơn, không bắt buộc. | Tài liệu phạm vi (mở rộng) |
+| UC-01, UC-07, UC-09, UC-11 `<<include>>` Xác thực JWT | Bắt buộc đã đăng nhập; chưa đăng nhập thì chuyển sang UC-06. | FR-17, FR-18 |
+| UC-08 `<<extend>>` UC-07 | Từ lịch sử/chi tiết đơn, khách xem trạng thái hiện tại. | FR-30, FR-31 |
+| UC-10 `<<extend>>` UC-01 | Nhập mã khuyến mãi khi đặt đơn, không bắt buộc. | FR-36, tài liệu phạm vi (mở rộng) |
 | Khách hàng kế thừa Khách vãng lai | Mọi use-case của khách vãng lai đều dùng được khi đã đăng nhập. | |
-| Quản lý cửa hàng kế thừa Nhân viên quầy | Quản lý làm được mọi việc của nhân viên quầy. | FR-08: nhân viên/quản trị cập nhật trạng thái |
+| Quản lý cửa hàng kế thừa Nhân viên quầy | Quản lý làm được mọi việc của nhân viên quầy. | FR-17: vai trò CUSTOMER, STAFF, ADMIN |
 
-## 4. Vấn đề cần người phụ trách SRS xử lý
+## 4. Ghi chú đối chiếu với SRS
 
-1. **Trùng mã FR.** `ssr.md` của Hữu Mẫn dùng FR-01 → FR-38, trong đó FR-05 → FR-08 trùng với
-   FR-05 → FR-08 của Minh Trí nhưng là yêu cầu khác. Nhóm cần thống nhất cách đánh số (ví dụ Mẫn
-   giữ FR-01 → FR-04 theo 4 nhóm chức năng, hoặc Trí đổi sang dải số khác). Sau khi chốt, cột
-   *Yêu cầu liên quan* ở mục 2 sẽ được cập nhật theo.
-2. **Khuyến mãi (UC-10) và quản lý menu (UC-12)** chưa có mã FR.
+1. **Mã UC khác nhau giữa hai tài liệu.** Sơ đồ này giữ mã UC-01 → UC-12 (UC-01 trùng với đặc tả chi
+   tiết của Anh Vũ). SRS gom thành 7 nhóm UC-01 → UC-07; cột *Nhóm UC trong SRS* ở mục 2 cho biết
+   mỗi use-case thuộc nhóm nào.
+2. **Báo cáo doanh thu (FR-38, Could)** của Quản lý/Admin chưa vẽ trên sơ đồ vì nằm ngoài MVP và
+   chưa có trong tài liệu phạm vi.

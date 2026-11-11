@@ -2,7 +2,8 @@
 
 > Task 2.3 · Người thực hiện: Quách Văn Trường · Reviewer: Trần Minh Trí
 > Nguồn: [`class-domain.puml`](class-domain.puml) · Kết xuất: [`class-domain.svg`](class-domain.svg)
-> Bám theo mô hình dữ liệu đã merge vào `main`: [`apps/api/prisma/schema.prisma`](../../apps/api/prisma/schema.prisma)
+> Bám theo mô hình dữ liệu [`apps/api/prisma/schema.prisma`](../../apps/api/prisma/schema.prisma) (gồm thay đổi ở PR #16)
+> và mã yêu cầu trong [`srs.md`](../requirements/srs.md) (PR #15)
 
 ![Class diagram mức domain](class-domain.svg)
 
@@ -10,22 +11,22 @@
 
 | Lớp | Vai trò | Yêu cầu / use-case |
 |-----|---------|--------------------|
-| `User` | Tài khoản khách hàng hoặc nhân viên; mật khẩu lưu dạng băm. | FR-04, UC-05, UC-06 |
-| `Product` | Đồ uống trên menu: giá gốc, mô tả, ảnh, danh mục, còn bán hay không. | FR-01, FR-02, UC-02, UC-03 |
-| `Size` | Size S/M/L: phụ thu và hệ số nhân công thức (S = 1; M = 1,25; L = 1,5). | FR-02, UC-03 |
-| `Topping` | Topping có giá và lượng nguyên liệu dùng cho một phần. | FR-02, UC-03 |
-| `Ingredient` | Nguyên liệu trong kho, `quantity` là lượng còn lại. | FR-05, UC-01 |
-| `ProductIngredient` | Công thức: một ly size chuẩn cần bao nhiêu nguyên liệu. | FR-05 |
-| `Order` | Đơn hàng: trạng thái, tổng tiền tính ở server, lượng nguyên liệu đã trừ để hoàn kho khi hủy. | FR-05, FR-07, FR-08, UC-01, UC-07 → UC-09, UC-11 |
-| `OrderItem` | Một dòng trong đơn; lưu bản chụp tên món, size, topping, đơn giá tại thời điểm đặt. | FR-05, UC-01 |
-| `Payment` | Một giao dịch thanh toán qua VNPay sandbox, khóa duy nhất `txnRef`. | FR-06, UC-01 |
-| `Promotion` *(mở rộng)* | Mã giảm giá: mã, phần trăm giảm, hạn dùng, giới hạn và số lượt đã dùng. | FR-36 (SRS của Tuấn Vỹ), UC-10 |
-| `LoyaltyTransaction` *(mở rộng)* | Một lần cộng điểm thưởng khi đơn chuyển `PAID`. | FR-37 (SRS của Tuấn Vỹ); FR-06, FR-07 trong `srs.md` |
+| `User` | Tài khoản khách hàng hoặc nhân viên; mật khẩu lưu dạng băm; `walletBalance` là số dư ví mô phỏng. | FR-14, FR-15, FR-17, FR-24, UC-05, UC-06 |
+| `Product` | Đồ uống trên menu: giá gốc, mô tả, ảnh, danh mục, còn bán hay không. | FR-01, FR-04, FR-06, UC-02, UC-03 |
+| `Size` | Size S/M/L: phụ thu và hệ số nhân công thức (S = 1; M = 1,25; L = 1,5). | FR-07, UC-03 |
+| `Topping` | Topping có giá và lượng nguyên liệu dùng cho một phần. | FR-08, UC-03 |
+| `Ingredient` | Nguyên liệu trong kho, `quantity` là lượng còn lại. | FR-03, FR-20, UC-01 |
+| `ProductIngredient` | Công thức: một ly size chuẩn cần bao nhiêu nguyên liệu. | FR-20 |
+| `Order` | Đơn hàng: trạng thái, tổng tiền tính ở server, lượng nguyên liệu đã trừ để hoàn kho khi hủy. | FR-19, FR-20, FR-27, FR-30, FR-31, FR-34, UC-01, UC-07 → UC-09, UC-11 |
+| `OrderItem` | Một dòng trong đơn; lưu bản chụp tên món, size, topping, đơn giá tại thời điểm đặt. | FR-19, FR-21, UC-01 |
+| `Payment` | Một giao dịch thanh toán: Ví/Thẻ mô phỏng hoặc VNPay sandbox; `idempotencyKey` chống trùng; thẻ chỉ lưu 4 số cuối. | FR-24 → FR-27, UC-01 |
+| `Promotion` *(mở rộng)* | Mã giảm giá: mã, phần trăm giảm, hạn dùng, giới hạn và số lượt đã dùng. | FR-36, UC-10 |
+| `LoyaltyTransaction` *(mở rộng)* | Một lần cộng điểm thưởng khi đơn chuyển `PAID`. | FR-37 |
 
 `Promotion` và `LoyaltyTransaction` là hai lớp đề bài bắt buộc có trong class diagram. Theo
-[`scope-assumptions-risks.md`](../requirements/scope-assumptions-risks.md), đây là phạm vi mở rộng nên
-**chưa có trong `schema.prisma`**. Trên sơ đồ, hai lớp này tô xám, gắn nhãn `<<mở rộng>>`, quan hệ vẽ nét đứt.
-Thuộc tính của hai lớp này chỉ lấy từ yêu cầu của Assignment 2: FR-36, FR-37 trong SRS của Tuấn Vỹ (nhánh `docs-srs-only`, chờ merge) và mục cộng điểm thưởng ở FR-06, FR-07 của `srs.md`. Khi SRS được merge với số khác, cột yêu cầu sẽ cập nhật theo.
+[`scope-assumptions-risks.md`](../requirements/scope-assumptions-risks.md), đây là phạm vi mở rộng
+(SRS xếp FR-36, FR-37 mức Could) nên **chưa có trong `schema.prisma`**. Trên sơ đồ, hai lớp này tô xám,
+gắn nhãn `<<mở rộng>>`, quan hệ vẽ nét đứt. Thuộc tính lấy từ tiêu chí chấp nhận của FR-36, FR-37.
 
 ## 2. Quan hệ và multiplicity
 
@@ -34,7 +35,7 @@ Thuộc tính của hai lớp này chỉ lấy từ yêu cầu của Assignment 
 | User – Order | 1 – 0..* | Mỗi đơn thuộc đúng một khách (`Order.userId`). |
 | Order ◆ OrderItem | 1 – 1..* (composition) | Đơn có ít nhất 1 món (DTO chặn giỏ rỗng); xóa đơn thì xóa dòng (`onDelete: Cascade`). |
 | OrderItem ⇢ Product | 0..* – 1 | Chỉ lưu `productId` kèm bản chụp tên và giá, **không có khóa ngoại**, để đơn cũ giữ nguyên khi menu thay đổi. |
-| Order ◆ Payment | 1 – 0..* | Mỗi lần tạo link thanh toán mới là một `Payment`; xóa đơn thì xóa giao dịch. |
+| Order ◆ Payment | 1 – 0..* | Mỗi lần bấm thanh toán (một `Idempotency-Key`) là một `Payment`; thanh toán lại sau lỗi tạo `Payment` mới. |
 | Product – ProductIngredient – Ingredient | 1 – 0..* – 1 | Bảng công thức, khóa chính `(productId, ingredientId)`. |
 | Topping → Ingredient | 0..* – 1 | Mỗi topping tiêu hao một loại nguyên liệu. |
 | Order ⇢ Ingredient | phụ thuộc | `ingredientUsage` lưu `{ ingredientId: lượng đã trừ }` để hoàn kho. |
@@ -48,33 +49,26 @@ Thuộc tính của hai lớp này chỉ lấy từ yêu cầu của Assignment 
 
 | Enum | Giá trị | Ghi chú |
 |------|---------|---------|
-| `OrderStatus` | `PENDING_PAYMENT`, `PAID`, `PREPARING`, `READY`, `COMPLETED`, `CANCELLED` | Chuyển trạng thái theo ghi chú trên sơ đồ. `COMPLETED`, `CANCELLED` là trạng thái kết thúc. |
-| `PaymentStatus` | `PENDING`, `SUCCESS`, `FAILED` | Chỉ giao dịch `PENDING` mới được cập nhật kết quả. |
+| `OrderStatus` | `PENDING_PAYMENT`, `PAYMENT_FAILED`, `PAID`, `PREPARING`, `READY`, `COMPLETED`, `CANCELLED` | `COMPLETED`, `CANCELLED` là trạng thái kết thúc. |
+| `PaymentStatus` | `PENDING`, `SUCCESS`, `FAILED` | Ví/Thẻ mô phỏng có kết quả ngay; VNPay đi qua `PENDING` rồi mới có kết quả. |
 | `Role` | `CUSTOMER`, `STAFF` | `STAFF` xem mọi đơn và đẩy trạng thái pha chế. |
+| `Payment.method` | `WALLET`, `CARD`, `VNPAY` | Lưu dạng chuỗi trong DB. |
 
 Chuyển trạng thái đơn trong code:
-- `PENDING_PAYMENT → PAID`: VNPay báo thành công (`payments.service.ts`).
-- `PENDING_PAYMENT → CANCELLED`: khách hủy hoặc thanh toán lỗi; hoàn kho theo `ingredientUsage` (`OrdersService.cancelPending`).
-- `PAID → PREPARING → READY → COMPLETED`: chỉ `STAFF`, đúng thứ tự (`NEXT_STATUS` trong `orders.dto.ts`).
+- `PENDING_PAYMENT → PAID`, `PAYMENT_FAILED → PAID`: thanh toán thành công (`mock-payments.service.ts`, `payments.service.ts`).
+- `PENDING_PAYMENT → PAYMENT_FAILED`: thanh toán lỗi, giữ kho để khách thanh toán lại (FR-27).
+- `PENDING_PAYMENT | PAYMENT_FAILED → CANCELLED`: khách hủy; hoàn kho theo `ingredientUsage` (`OrdersService.cancelPending`).
+- `PAID → PREPARING → READY → COMPLETED`: chỉ `STAFF`, đúng thứ tự (`NEXT_STATUS` trong `orders.dto.ts`, FR-34).
 
-## 4. Đối chiếu với SRS – các điểm nhóm cần chốt
+## 4. Đối chiếu với SRS
 
-Sơ đồ này bám theo **code đã merge**. SRS FR-05 → FR-08 (PR #1, chưa merge) và góp ý trên PR #1
-đang mô tả khác code ở các điểm sau. Theo tiêu chí nghiệm thu Task 2, sơ đồ, SRS và mô hình dữ
-liệu phải khớp nhau, nên nhóm cần chọn một bên rồi sửa bên còn lại.
+Sau khi SRS được chốt (PR #15) và code cập nhật ở PR #16, các điểm lệch trước đây (trạng thái
+`PENDING_PAYMENT`/`PAYMENT_FAILED`, thanh toán Ví/Thẻ mô phỏng, `Idempotency-Key`, `GET /orders/me`)
+đã khớp. Còn lại:
 
-| Điểm | SRS (PR #1) | Code `main` và sơ đồ này |
-|------|-------------|---------------------------|
-| Trạng thái chờ thanh toán | `PENDING` | `PENDING_PAYMENT` |
-| Thanh toán lỗi | Đơn sang `PAYMENT_FAILED`, giữ đơn để thử lại | Không có `PAYMENT_FAILED`; đơn bị `CANCELLED` và hoàn kho |
-| Tồn kho | `Product.stock`, trừ theo số ly | Theo nguyên liệu: `Ingredient`, công thức × hệ số size |
-| Cổng thanh toán | Mock Ví (`E_WALLET`) / Thẻ (`BANK_CARD`) | VNPay sandbox, `method = "VNPAY"` |
-| Chống trùng thanh toán | Header `Idempotency-Key` | Dùng lại `txnRef` của `Payment` `PENDING`; cập nhật có điều kiện khi nhận kết quả |
-| API thanh toán | `POST /payments` hoặc `POST /orders/:id/pay` | `POST /payments/vnpay`, `GET /payments/vnpay/ipn`, `GET /payments/vnpay/return` |
-| Lịch sử đơn | `GET /orders/me` | `GET /orders` (khách thấy đơn của mình, STAFF thấy tất cả) |
-| Khách hủy đơn | Khi `PENDING` hoặc `PAYMENT_FAILED` | Chỉ khi `PENDING_PAYMENT` |
-| Vai trò | `CUSTOMER`, `STAFF`, `ADMIN` | `CUSTOMER`, `STAFF` |
-
-Đề xuất: sửa SRS theo code (ít việc hơn và code đã có integration test), trừ hai điểm đề bài yêu
-cầu rõ: thanh toán "Ví/Thẻ mô phỏng" và idempotency. Nếu nhóm quyết định đổi code theo SRS, sơ đồ
-này sẽ được cập nhật trong cùng PR đó.
+| Điểm | SRS | Code và sơ đồ này |
+|------|-----|-------------------|
+| Vai trò | `CUSTOMER`, `STAFF`, `ADMIN` (FR-17) | `CUSTOMER`, `STAFF`; `ADMIN` chỉ cần khi làm FR-35, FR-38 (Should/Could) |
+| Danh sách đơn cho nhân viên | `GET /staff/orders` (FR-33) | `GET /orders?status=` với role `STAFF` |
+| Tồn kho | "tồn kho" theo sản phẩm (FR-03, FR-20) | Theo nguyên liệu × công thức × hệ số size (ADR-006) |
+| Cổng thanh toán thật | Ngoài phạm vi (FR-39) | Có thêm VNPay sandbox, không bắt buộc cấu hình (ADR-008) |
