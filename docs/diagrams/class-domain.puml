@@ -22,6 +22,7 @@ package "Enum" {
   }
   enum OrderStatus {
     PENDING_PAYMENT
+    PAYMENT_FAILED
     PAID
     PREPARING
     READY
@@ -41,6 +42,7 @@ class User {
   + passwordHash : String
   + fullName : String
   + role : Role
+  + walletBalance : Int = 200000
   + createdAt : DateTime
 }
 
@@ -100,12 +102,14 @@ package "Đơn hàng và thanh toán" {
   }
   class Payment {
     + id : Int
-    + method : String = "VNPAY"
+    + method : String {WALLET | CARD | VNPAY}
     + amount : Int
     + status : PaymentStatus
     + txnRef : String {unique}
+    + idempotencyKey : String [0..1] {unique}
     + vnpTransactionNo : String [0..1]
     + responseCode : String [0..1]
+    + cardLast4 : String [0..1]
     + createdAt : DateTime
     + paidAt : DateTime [0..1]
   }
@@ -153,16 +157,19 @@ end note
 note right of Order
   totalAmount = tổng OrderItem.lineTotal, tính lại ở server.
   Tạo đơn: khóa Ingredient, trừ kho, status = PENDING_PAYMENT.
-  PENDING_PAYMENT → PAID (VNPay báo thành công)
-  PENDING_PAYMENT → CANCELLED (khách hủy hoặc thanh toán lỗi,
-                               hoàn kho theo ingredientUsage)
+  PENDING_PAYMENT → PAID (thanh toán thành công)
+  PENDING_PAYMENT → PAYMENT_FAILED (thanh toán lỗi, giữ kho)
+  PAYMENT_FAILED → PAID (thanh toán lại thành công)
+  PENDING_PAYMENT | PAYMENT_FAILED → CANCELLED
+      (khách hủy, hoàn kho theo ingredientUsage)
   PAID → PREPARING → READY → COMPLETED (chỉ STAFF)
 end note
 
 note bottom of Payment
-  Gọi lại khi đã có Payment PENDING thì dùng lại txnRef.
-  Kết quả VNPay chỉ xử lý khi Payment còn PENDING,
-  nên gọi lặp không cập nhật đơn lần hai.
+  Cùng idempotencyKey → trả lại giao dịch cũ,
+  không trừ tiền lần hai (FR-26).
+  WALLET/CARD mô phỏng có kết quả ngay; CARD chỉ lưu 4 số cuối.
+  VNPay: kết quả chỉ xử lý khi Payment còn PENDING.
 end note
 
 note bottom of ProductIngredient

@@ -2,13 +2,13 @@
 
 - Trạng thái: Accepted
 - Ngày: 2026-11-10
-- Liên quan: NFR-14, NFR-16, Task 5.2, class diagram (`docs/diagrams/class-domain.puml`)
+- Liên quan: NFR-15, NFR-18, NFR-19, Task 5, class diagram (`docs/diagrams/class-domain.puml`)
 
 ## Bối cảnh
 
 Đề bài bắt buộc PostgreSQL. Hệ thống cần transaction cho tạo đơn và trừ kho, ràng buộc duy nhất
 cho email và mã giao dịch, và database phải tái tạo được bằng migration/seed ở local, CI và
-production (NFR-14).
+production (NFR-19).
 
 ## Quyết định
 

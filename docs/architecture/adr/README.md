@@ -8,15 +8,16 @@ của ADR đã `Accepted`; khi đổi quyết định, tạo ADR mới và đán
 | ADR | Quyết định | Trạng thái | Người viết |
 |-----|-----------|------------|------------|
 | [001](001-monorepo.md) | Monorepo `apps/web` + `apps/api` + `docs` | Accepted | Văn Trường |
-| [002](002-deploy-platform.md) | Chọn Render làm nền tảng triển khai | Accepted | Thái Tú (nhánh `docs/adr-deploy-platform`) |
+| [002](002-deploy-platform.md) | Chọn Render làm nền tảng triển khai | Accepted | Thái Tú (PR #8) |
 | [003](003-postgresql-prisma-migrations.md) | PostgreSQL + Prisma, migration bằng `prisma migrate` | Accepted | Văn Trường |
 | [004](004-jwt-authentication.md) | Xác thực stateless bằng JWT, phân quyền theo role | Accepted | Văn Trường |
-| [005](005-payment-gateway-idempotency.md) | Thanh toán qua VNPay sandbox, chống xử lý trùng | Accepted, cần cập nhật SRS | Văn Trường |
-| [006](006-inventory-transaction-row-locking.md) | Tồn kho theo nguyên liệu, transaction + khóa dòng | Accepted, cần cập nhật SRS | Văn Trường |
+| [005](005-payment-gateway-idempotency.md) | Thanh toán qua VNPay sandbox, chống xử lý trùng | Superseded một phần by ADR-008 | Văn Trường |
+| [006](006-inventory-transaction-row-locking.md) | Tồn kho theo nguyên liệu, transaction + khóa dòng | Accepted | Văn Trường |
 | [007](007-ci-cd-github-actions.md) | CI/CD bằng GitHub Actions, image tag theo commit SHA | CI: Accepted · CD: Proposed | Văn Trường |
+| [008](008-simulated-wallet-card-payment.md) | Thanh toán Ví/Thẻ mô phỏng, `Idempotency-Key`, trạng thái `PAYMENT_FAILED` | Accepted (PR #16) | Văn Trường |
 
-Các ADR mô tả quyết định **đã hiện thực trong code ở `main`**. Riêng phần CD của ADR-007 là đề xuất,
-chờ Thái Tú dựng pipeline. ADR-002 do Thái Tú viết; liên kết sẽ hoạt động sau khi nhánh của Tú được merge.
+Các ADR mô tả quyết định **đã hiện thực trong code**: ADR-001 → 007 ở `main`, ADR-008 ở PR #16. Riêng phần CD của ADR-007 là đề xuất,
+chờ Thái Tú dựng pipeline. ADR-002 do Thái Tú viết (đã merge ở PR #8).
 
 ## Mẫu ADR
 
