@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { OrderStatus, PaymentStatus } from '@prisma/client';
-import { OrdersService } from '../orders/orders.service';
+import { OrderStatus, Payment, PaymentStatus, Prisma } from '@prisma/client';
+import { UNPAID } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaymentUrl, verifySignature, vnpDate } from './vnpay';
 
@@ -14,7 +14,7 @@ export interface VnpResult {
 
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService, private ordersService: OrdersService, private config: ConfigService) {}
+  constructor(private prisma: PrismaService, private config: ConfigService) {}
 
   private cfg() {
     const tmn = this.config.get<string>('VNPAY_TMN_CODE');
@@ -28,31 +28,66 @@ export class PaymentsService {
   }
 
   /**
-   * Tạo link thanh toán VNPay cho đơn.
-   * Idempotent: gọi lại khi đã có giao dịch PENDING của đơn thì dùng lại cùng vnp_TxnRef (không tạo giao dịch trùng).
+   * Tạo link thanh toán VNPay cho đơn đang PENDING_PAYMENT hoặc PAYMENT_FAILED (thanh toán lại).
+   * Idempotent (FR-06):
+   *  - Gửi lại cùng Idempotency-Key → trả lại đúng giao dịch đã tạo, không tạo giao dịch mới.
+   *  - Key đã dùng cho đơn khác hoặc người khác → 409.
+   *  - Đơn đang có giao dịch PENDING → dùng lại giao dịch đó (cùng vnp_TxnRef), tránh hai link cùng trừ tiền.
+   *  - Khóa dòng Order trong transaction để hai request đồng thời không tạo hai giao dịch PENDING.
    */
-  async createVnpayPayment(userId: number, orderId: number, ipAddr: string) {
+  async createVnpayPayment(userId: number, orderId: number, ipAddr: string, idempotencyKey: string) {
     const c = this.cfg();
+    const replay = await this.findByKey(userId, orderId, idempotencyKey);
+    if (replay) return this.toResponse(c, replay, ipAddr);
+
     const order = await this.prisma.order.findFirst({ where: { id: orderId, userId } });
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
-    if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException('Đơn hàng không ở trạng thái chờ thanh toán');
 
-    let payment = await this.prisma.payment.findFirst({ where: { orderId, status: PaymentStatus.PENDING }, orderBy: { id: 'desc' } });
-    if (!payment) {
-      payment = await this.prisma.payment.create({
-        data: { orderId, amount: order.totalAmount, method: 'VNPAY', status: PaymentStatus.PENDING, txnRef: `${orderId}${Date.now()}` },
+    let payment: Payment;
+    try {
+      payment = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+        const fresh = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
+        if (!UNPAID.includes(fresh.status)) throw new ConflictException('Đơn hàng không ở trạng thái chờ thanh toán');
+        const pending = await tx.payment.findFirst({ where: { orderId, status: PaymentStatus.PENDING }, orderBy: { id: 'desc' } });
+        if (pending) return pending;
+        return tx.payment.create({
+          data: { orderId, amount: fresh.totalAmount, method: 'VNPAY', status: PaymentStatus.PENDING, txnRef: `${orderId}${Date.now()}`, idempotencyKey },
+        });
       });
+    } catch (e) {
+      // Hai request cùng key chạy đồng thời: request sau vướng UNIQUE(idempotencyKey) → trả giao dịch của request trước
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const again = await this.findByKey(userId, orderId, idempotencyKey);
+        if (again) return this.toResponse(c, again, ipAddr);
+      }
+      throw e;
     }
+    return this.toResponse(c, payment, ipAddr);
+  }
+
+  /** Giao dịch đã tạo bằng key này (nếu có). Key thuộc đơn hoặc người dùng khác → 409. */
+  private async findByKey(userId: number, orderId: number, idempotencyKey: string) {
+    const p = await this.prisma.payment.findUnique({ where: { idempotencyKey }, include: { order: { select: { userId: true } } } });
+    if (!p) return null;
+    if (p.orderId !== orderId || p.order.userId !== userId) throw new ConflictException('Idempotency-Key đã được dùng cho đơn hàng khác');
+    return p;
+  }
+
+  /** Giao dịch còn PENDING thì kèm link VNPay; đã có kết quả thì chỉ trả trạng thái (không mở link mới). */
+  private toResponse(c: ReturnType<PaymentsService['cfg']>, payment: Payment, ipAddr: string) {
+    const base = { paymentId: payment.id, orderId: payment.orderId, amount: payment.amount, paymentStatus: payment.status };
+    if (payment.status !== PaymentStatus.PENDING) return base;
     const now = new Date();
     const paymentUrl = buildPaymentUrl(c.url, c.secret, {
       vnp_Version: '2.1.0', vnp_Command: 'pay', vnp_TmnCode: c.tmn,
       vnp_Amount: payment.amount * 100, // VNPay yêu cầu nhân 100
       vnp_CreateDate: vnpDate(now), vnp_ExpireDate: vnpDate(new Date(now.getTime() + 15 * 60_000)),
       vnp_CurrCode: 'VND', vnp_IpAddr: ipAddr, vnp_Locale: 'vn',
-      vnp_OrderInfo: `Thanh toan don hang ${orderId}`, vnp_OrderType: 'other',
+      vnp_OrderInfo: `Thanh toan don hang ${payment.orderId}`, vnp_OrderType: 'other',
       vnp_ReturnUrl: c.returnUrl, vnp_TxnRef: payment.txnRef,
     });
-    return { paymentId: payment.id, orderId, amount: payment.amount, paymentUrl };
+    return { ...base, paymentUrl };
   }
 
   /**
@@ -83,9 +118,10 @@ export class PaymentsService {
       if (!res.count) return false;
       if (success) {
         // Nếu đơn đã bị hủy trước đó thì không chuyển PAID (giao dịch SUCCESS vẫn được ghi để đối soát/hoàn tiền)
-        await tx.order.updateMany({ where: { id: payment.orderId, status: OrderStatus.PENDING_PAYMENT }, data: { status: OrderStatus.PAID } });
+        await tx.order.updateMany({ where: { id: payment.orderId, status: { in: UNPAID } }, data: { status: OrderStatus.PAID } });
       } else {
-        await this.ordersService.cancelPending(tx, payment.orderId); // thanh toán lỗi → hủy đơn, hoàn nguyên liệu
+        // Thanh toán lỗi → PAYMENT_FAILED, giữ nguyên kho để khách thanh toán lại hoặc tự hủy đơn (FR-06, FR-08)
+        await tx.order.updateMany({ where: { id: payment.orderId, status: OrderStatus.PENDING_PAYMENT }, data: { status: OrderStatus.PAYMENT_FAILED } });
       }
       return true;
     });
