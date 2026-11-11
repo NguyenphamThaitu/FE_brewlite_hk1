@@ -1,0 +1,44 @@
+@startuml deployment-production
+title BrewLite – Sơ đồ triển khai production (Render, theo ADR-002 và ADR-007)
+skinparam shadowing false
+
+node "Thiết bị người dùng" as DEV {
+  artifact "Trình duyệt\n(điện thoại / máy tính)" as BROWSER
+}
+
+cloud "GitHub" as GH {
+  artifact "Repo FE_brewlite_hk1\n(nhánh main, tag v*)" as REPO
+  node "GitHub Actions" as GHA {
+    artifact "ci.yml\nlint → test → build" as CI
+    artifact "cd.yml (dự kiến)\nbuild image → push →\ndeploy hook → smoke test" as CD
+  }
+  database "GHCR\nghcr.io/.../brewlite-api:sha-<commit>\nghcr.io/.../brewlite-web:sha-<commit>" as GHCR
+}
+
+cloud "Render (gói miễn phí)" as RENDER {
+  node "Web Service: brewlite-web\nDocker · Node 20 · cổng 3000\nHTTPS tự động" as WEBSVC {
+    artifact "Next.js standalone\n(server.js)" as WEBAPP
+  }
+  node "Web Service: brewlite-api\nDocker · Node 22 · cổng 3001\nHealth check: /health" as APISVC {
+    artifact "NestJS\nprisma migrate deploy\n→ node dist/main.js" as APIAPP
+  }
+  database "Render PostgreSQL\n(chỉ Internal URL,\nkhông mở public)" as PG
+}
+
+cloud "VNPay sandbox" as VNP
+
+REPO --> CI : pull request / push
+REPO --> CD : push main / tag v*
+CD --> GHCR : docker push (GITHUB_TOKEN)
+CD --> APISVC : Deploy hook (secret) + imgURL
+CD --> WEBSVC : Deploy hook (secret) + imgURL
+GHCR ..> APISVC : kéo image
+GHCR ..> WEBSVC : kéo image
+CD ..> APISVC : smoke test GET /health
+
+BROWSER --> WEBAPP : HTTPS 443 (trang web)
+BROWSER --> APIAPP : HTTPS 443 (gọi API, NEXT_PUBLIC_API_URL)
+APIAPP --> PG : TCP 5432 (mạng nội bộ Render)
+BROWSER ..> VNP : chuyển sang trang thanh toán
+VNP ..> APIAPP : HTTPS IPN /payments/vnpay/ipn
+@enduml

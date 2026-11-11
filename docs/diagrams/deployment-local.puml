@@ -1,0 +1,19 @@
+@startuml deployment-local
+title BrewLite – Sơ đồ triển khai local (docker compose up)
+skinparam shadowing false
+
+node "Máy lập trình viên" as PC {
+  artifact "Trình duyệt" as BROWSER
+  node "Docker Engine" as DOCKER {
+    node "container: web\n(profile \"web\")\nNode 20 · cổng 3000" as WEB
+    node "container: api\nNode 22 · cổng 3001\nhealthcheck /health" as API
+    node "container: db\npostgres:16-alpine\nkhông mở cổng ra ngoài" as DB
+    database "volume: pgdata" as VOL
+  }
+}
+
+BROWSER --> WEB : http://localhost:3000
+BROWSER --> API : http://localhost:3001
+API --> DB : db:5432 (mạng nội bộ compose)\nchờ db healthy mới khởi động
+DB --> VOL : lưu dữ liệu
+@enduml

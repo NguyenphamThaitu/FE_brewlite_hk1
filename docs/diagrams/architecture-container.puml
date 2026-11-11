@@ -1,0 +1,48 @@
+@startuml architecture-container
+title BrewLite – Kiến trúc thành phần (container)
+skinparam shadowing false
+skinparam componentStyle rectangle
+left to right direction
+
+actor "Khách hàng" as C
+actor "Nhân viên quầy" as S
+
+rectangle "Web – Next.js 16 (apps/web)" as WEB {
+  component "Trang menu,\ngiỏ hàng (lưu ở client)" as UI_MENU
+  component "Đặt đơn, thanh toán,\nlịch sử, theo dõi đơn" as UI_ORDER
+  component "Màn hình quầy\n(cập nhật trạng thái)" as UI_STAFF
+}
+
+rectangle "API – NestJS 11 (apps/api)" as API {
+  component "Lớp chung\nhelmet · CORS · ValidationPipe\nJwtAuthGuard · RolesGuard" as CORE
+  component "AuthModule\n/auth" as AUTH
+  component "ProductsModule\n/products" as PROD
+  component "OrdersModule\n/orders" as ORD
+  component "PaymentsModule\n/payments/vnpay" as PAY
+  component "HealthController\n/health" as HEALTH
+  component "PrismaService\n(Prisma ORM)" as PRISMA
+}
+
+database "PostgreSQL 16\nUser · Product · Size · Topping\nIngredient · Recipe · Order\nOrderItem · Payment" as DB
+cloud "VNPay sandbox" as VNP
+
+C --> UI_MENU
+C --> UI_ORDER
+S --> UI_STAFF
+UI_MENU --> CORE : HTTPS/JSON
+UI_ORDER --> CORE : HTTPS/JSON + JWT
+UI_STAFF --> CORE : HTTPS/JSON + JWT (STAFF)
+CORE --> AUTH
+CORE --> PROD
+CORE --> ORD
+CORE --> PAY
+CORE --> HEALTH
+AUTH --> PRISMA
+PROD --> PRISMA
+ORD --> PRISMA
+PAY --> PRISMA
+HEALTH --> PRISMA
+PRISMA --> DB : SQL (transaction,\nFOR UPDATE)
+UI_ORDER ..> VNP : chuyển trình duyệt\nsang paymentUrl
+VNP ..> PAY : IPN (server-to-server)\nchữ ký HMAC-SHA512
+@enduml
