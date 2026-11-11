@@ -1,0 +1,87 @@
+@startuml sequence-order-payment
+title BrewLite – Đặt đơn và thanh toán VNPay (FR-19, FR-20, FR-26, FR-27, FR-29)
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+autonumber
+
+actor "Khách hàng" as C
+participant "Web\n(Next.js)" as W
+participant "API\nOrders" as O
+participant "API\nPayments" as P
+database "PostgreSQL" as DB
+participant "VNPay\nsandbox" as V
+
+== 1. Tạo đơn từ giỏ hàng ==
+C -> W : Bấm "Đặt đơn"
+W -> O : POST /orders {items[productId, sizeId, toppingIds, quantity]}\nAuthorization: Bearer <JWT>
+note right of O
+  JwtAuthGuard: không có/sai token → 401
+  ValidationPipe: giỏ rỗng, trường thừa → 400
+end note
+O -> DB : BEGIN
+O -> DB : Đọc món, size, topping\n(server tự tính giá, không tin giá client gửi)
+O -> DB : SELECT Ingredient ... ORDER BY id FOR UPDATE
+alt Thiếu nguyên liệu
+  O -> DB : ROLLBACK
+  O --> W : 409 "Không đủ nguyên liệu: ..."
+  W --> C : Báo món hết hàng
+else Đủ nguyên liệu
+  O -> DB : UPDATE Ingredient (trừ kho)
+  O -> DB : INSERT Order (PENDING_PAYMENT) + OrderItem (snapshot tên, giá)
+  O -> DB : COMMIT
+  O --> W : 201 {id, items, totalAmount, status: PENDING_PAYMENT}
+end
+
+== 2. Tạo giao dịch thanh toán (idempotent) ==
+C -> W : Bấm "Thanh toán"
+W -> P : POST /payments/vnpay {orderId}\nIdempotency-Key: <key mới>
+alt Key đã dùng cho đúng đơn này (gửi lặp)
+  P -> DB : Tìm Payment theo idempotencyKey
+  P --> W : 200 cùng giao dịch cũ, không tạo mới
+else Key đã dùng cho đơn/người khác
+  P --> W : 409
+else Key mới
+  P -> DB : BEGIN; SELECT Order ... FOR UPDATE
+  P -> DB : Đơn phải PENDING_PAYMENT hoặc PAYMENT_FAILED (sai → 409)
+  P -> DB : Có Payment PENDING thì dùng lại,\nchưa có thì INSERT Payment (PENDING, txnRef, key)
+  P -> DB : COMMIT
+  P -> P : Ký URL bằng HMAC-SHA512 (VNPAY_HASH_SECRET)
+  P --> W : 200 {paymentId, paymentUrl}
+end
+W -> V : Chuyển trình duyệt sang paymentUrl
+C -> V : Nhập thông tin, xác nhận thanh toán
+
+== 3. VNPay báo kết quả ==
+par Server-to-server (IPN)
+  V -> P : GET /payments/vnpay/ipn?vnp_...&vnp_SecureHash
+  P -> P : Sai chữ ký → 97; không có txnRef → 01; sai số tiền → 04
+  P -> DB : UPDATE Payment SET status=SUCCESS|FAILED\nWHERE id=? AND status=PENDING
+  alt Cập nhật được (lần đầu)
+    P -> DB : Thành công: Order → PAID\nThất bại: Order → PAYMENT_FAILED (giữ kho)
+    P --> V : {RspCode: "00"}
+  else Đã xử lý trước đó
+    P --> V : {RspCode: "02"} (không đổi gì)
+  end
+else Trình duyệt quay về (Return URL)
+  V --> W : Redirect /payment/result?vnp_...
+  W -> P : GET /payments/vnpay/return?vnp_...
+  P -> P : Cùng hàm xử lý với IPN, an toàn khi gọi lặp
+  P --> W : {success, orderId, message}
+end
+
+alt success = true
+  W --> C : Màn hình xác nhận đơn, làm rỗng giỏ (FR-29)
+else Thanh toán thất bại
+  W --> C : Lý do lỗi + nút "Thanh toán lại" / "Hủy đơn"
+  opt Thanh toán lại (FR-27)
+    W -> P : POST /payments/vnpay {orderId}, Idempotency-Key MỚI
+    note right : Quay lại bước 2, tạo giao dịch mới
+  end
+  opt Hủy đơn
+    W -> O : POST /orders/:id/cancel
+    O -> DB : UPDATE Order SET CANCELLED WHERE status IN (PENDING_PAYMENT, PAYMENT_FAILED)\n+ cộng lại kho (một transaction)
+    O --> W : 201 {status: CANCELLED}
+  end
+end
+@enduml

@@ -1,0 +1,55 @@
+@startuml sequence-staff-status
+title BrewLite – Nhân viên cập nhật trạng thái đơn, khách theo dõi (FR-31, FR-33, FR-34)
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+autonumber
+
+actor "Nhân viên\nquầy" as S
+actor "Khách hàng" as C
+participant "Web\n(Next.js)" as W
+participant "API\nAuth" as A
+participant "API\nOrders" as O
+database "PostgreSQL" as DB
+
+S -> W : Đăng nhập
+W -> A : POST /auth/login {email, password}
+A -> DB : Tìm User, so sánh mật khẩu (bcrypt)
+A --> W : 200 {accessToken (JWT chứa userId, role=STAFF)}
+
+S -> W : Mở danh sách đơn cần pha
+W -> O : GET /orders?status=PAID
+note right of O : STAFF thấy mọi đơn;\nCUSTOMER chỉ thấy đơn của mình
+O -> DB : SELECT Order WHERE status = PAID
+O --> W : 200 [danh sách đơn]
+
+loop PAID → PREPARING → READY → COMPLETED
+  S -> W : Bấm chuyển sang bước kế tiếp
+  W -> O : PATCH /orders/:id/status {status}
+  alt Người gọi không phải STAFF
+    O --> W : 403 (RolesGuard)
+  else Sai thứ tự (ví dụ PAID → READY)
+    O --> W : 400 "Không thể chuyển đơn từ PAID sang READY"
+  else Đúng thứ tự
+    O -> DB : UPDATE Order SET status = mới\nWHERE id = ? AND status = cũ
+    alt Người khác vừa đổi trước (0 dòng)
+      O --> W : 409 "vui lòng tải lại"
+    else Thành công
+      O --> W : 200 {status mới}
+    end
+  end
+end
+
+group Cùng lúc đó: khách theo dõi đơn
+  loop Mỗi ≤ 10 giây (polling)
+    C -> W : Mở trang chi tiết đơn
+    W -> O : GET /orders/:id (JWT của khách)
+    O -> DB : SELECT Order
+    alt Đơn của người khác
+      O --> W : 403
+    else Đơn của mình
+      O --> W : 200 {status hiện tại}
+    end
+  end
+end
+@enduml
