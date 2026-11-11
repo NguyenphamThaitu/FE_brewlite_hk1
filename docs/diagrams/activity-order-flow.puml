@@ -1,0 +1,223 @@
+@startuml activity-order-flow
+' BrewLite - So do hoat dong: Luong dat mon va thanh toan end-to-end (Task 2.1)
+' Mo ta: docs/diagrams/activity-order-flow.md
+' Nguoi thuc hien: Tran Minh Tri (3124410371) - Reviewer: Quach Van Truong
+' Can cu: UC-01, FR-18 -> FR-27, FR-30, FR-33, FR-34, ADR-006, ADR-008
+
+skinparam defaultFontName Arial
+skinparam monochrome false
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam ActivityFontSize 12
+skinparam ArrowFontSize 11
+skinparam SwimlaneTitleFontSize 13
+skinparam SwimlaneTitleFontStyle bold
+
+skinparam activity {
+  BackgroundColor #FFF8EE
+  BorderColor #8A5A2B
+  ArrowColor #8A5A2B
+}
+
+title **BREWLITE — END-TO-END ORDERING & PAYMENT ACTIVITY DIAGRAM**\n//Task 2.1 - Sơ đồ Hoạt động Luồng Đặt món và Thanh toán (Assignment 2)//
+
+|#E8F4F8|Customer| Khách hàng
+|#FFF8E7|Frontend| Giao diện Next.js
+|#EBF5FB|Backend| NestJS API & Database
+|#F5EEF8|PaymentGateway| Cổng thanh toán (Mock)
+|#EAFAF1|Barista| Nhân viên quầy
+
+|Customer|
+start
+:Mở ứng dụng BrewLite;
+
+|Frontend|
+:Gửi yêu cầu lấy Menu đồ uống (GET /products);
+
+|Backend|
+:Truy vấn danh mục món và trạng thái mở bán;
+:Trả về danh sách sản phẩm kèm thông tin có sẵn (JSON);
+
+|Frontend|
+:Hiển thị thực đơn (Menu Display);
+
+|Customer|
+:Xem thực đơn và chọn món đồ uống;
+:Tùy chọn Kích cỡ (Size S/M/L) và Topping;
+:Bấm "Thêm vào giỏ hàng";
+
+|Frontend|
+:Lưu món vào giỏ hàng cục bộ (localStorage);
+:Cập nhật số lượng và tính tạm tính tổng tiền;
+
+|Customer|
+:Mở giỏ hàng và bấm "Đặt hàng / Thanh toán";
+
+|Frontend|
+' ===== RẼ NHÁNH 1: KIỂM TRA ĐĂNG NHẬP =====
+if (Người dùng đã đăng nhập?) then (Chưa đăng nhập)
+    |Customer|
+    :Chuyển hướng đến màn hình Đăng nhập;
+    :Nhập Email và Mật khẩu;
+    
+    |Frontend|
+    :Gửi thông tin đăng nhập (POST /auth/login);
+    
+    |Backend|
+    :Kiểm tra thông tin tài khoản & cấp JWT Token;
+    
+    |Frontend|
+    :Lưu JWT Token vào Client Storage;
+    :Bảo toàn nguyên vẹn giỏ hàng và tiếp tục Đặt hàng;
+else (Đã đăng nhập)
+endif
+
+|Frontend|
+:Gửi yêu cầu tạo đơn hàng\n(POST /orders kèm Bearer Token & giỏ hàng);
+
+|Backend|
+:Xác thực JWT Guard & Validate dữ liệu DTO;
+:Bắt đầu Database Transaction;
+:Khóa dòng và kiểm tra tồn kho nguyên liệu\n(SELECT ... FROM "Ingredient" FOR UPDATE);
+
+' ===== RẼ NHÁNH 2: KIỂM TRA TỒN KHO HÀNG HÓA =====
+if (Tồn kho nguyên liệu đủ theo công thức món?) then (Hết hàng / Thiếu nguyên liệu)
+    :Rollback Transaction;
+    :Trả về mã lỗi 409 Conflict\n(kèm danh sách nguyên liệu thiếu - FR-20);
+    
+    |Frontend|
+    :Hiển thị cảnh báo món đã hết hàng trên giao diện;
+    
+    |Customer|
+    :Điều chỉnh lại số lượng hoặc chọn món khác;
+    detach
+else (Đủ tồn kho)
+    |Backend|
+    :Trừ số lượng tồn kho nguyên liệu theo công thức món × size;
+    :Tính toán độc lập tổng tiền đơn hàng phía server (FR-21);
+    :Tạo bản ghi Order (PENDING_PAYMENT) và các OrderItem;
+    :Commit Transaction thành công;
+    :Trả về thông tin đơn hàng và orderId (201 Created);
+endif
+
+|Frontend|
+:Nhận orderId và chuyển sang màn hình Thanh toán;
+:Lưu trạng thái đơn hàng tạm thời;
+
+|Customer|
+:Chọn phương thức thanh toán\n(Ví điện tử WALLET hoặc Thẻ CARD - FR-24, FR-25);
+:Bấm "Xác nhận thanh toán";
+
+|Frontend|
+:Sinh Idempotency-Key duy nhất (UUIDv4) chống thanh toán trùng;
+:Gửi yêu cầu thanh toán (POST /payments kèm Idempotency-Key);
+
+|Backend|
+:Kiểm tra Idempotency-Key và trạng thái đơn PENDING_PAYMENT;
+:Mở Transaction, khóa dòng Order (FOR UPDATE) tạo bản ghi Payment PENDING;
+:Gọi Cổng thanh toán mô phỏng xử lý giao dịch;
+
+|PaymentGateway|
+:Xử lý trừ số dư Ví mô phỏng hoặc Xác thực Thẻ test;
+
+' ===== RẼ NHÁNH 3: KẾT QUẢ THANH TOÁN =====
+if (Giao dịch thanh toán thành công?) then (Thất bại: Ví thiếu tiền / Thẻ bị từ chối)
+    |PaymentGateway|
+    :Trả về mã lỗi thất bại kèm thông điệp chi tiết;
+    
+    |Backend|
+    :Cập nhật trạng thái Payment sang FAILED;
+    :Cập nhật trạng thái Order sang PAYMENT_FAILED (FR-27);
+    note right: Giữ nguyên tồn kho để khách hàng có thể thử thanh toán lại
+    :Commit Transaction;
+    :Trả về phản hồi 200 OK (status: FAILED, canRetry: true);
+    
+    |Frontend|
+    :Hiển thị thông báo thanh toán thất bại\nvà đưa ra tùy chọn "Thanh toán lại" / "Hủy đơn";
+    
+    |Customer|
+    if (Khách hàng chọn hành động tiếp theo?) then (Thanh toán lại)
+        :Chọn lại phương thức thanh toán hoặc đổi thẻ;
+        detach
+    else (Hủy đơn hàng)
+        |Customer|
+        :Bấm "Hủy đơn hàng";
+        
+        |Frontend|
+        :Gửi yêu cầu hủy đơn (POST /orders/:id/cancel);
+        
+        |Backend|
+        :Bắt đầu Transaction hủy đơn;
+        :Cập nhật trạng thái đơn sang CANCELLED;
+        :Hoàn trả nguyên liệu vào kho theo ingredientUsage;
+        :Commit Transaction;
+        :Trả về xác nhận hủy đơn thành công;
+        
+        |Frontend|
+        :Thông báo đơn hàng đã hủy thành công;
+        stop
+    endif
+else (Thanh toán thành công)
+    |PaymentGateway|
+    :Trả về kết quả thành công và mã giao dịch (txnRef);
+endif
+
+|Backend|
+:Cập nhật trạng thái Payment sang SUCCESS (paidAt = NOW);
+:Cập nhật trạng thái đơn hàng sang PAID;
+:Cộng điểm tích lũy thành viên Loyalty (nếu có - FR-37);
+:Commit Transaction;
+:Trả về kết quả thanh toán thành công (200 OK);
+
+|Frontend|
+:Xóa giỏ hàng cục bộ trong localStorage (Clear Cart);
+:Chuyển hướng đến màn hình "Chi tiết / Theo dõi đơn hàng" (/orders/[id]);
+:Hiển thị huy hiệu trạng thái: "ĐÃ THANH TOÁN (PAID)";
+:Bắt đầu chu kỳ Polling lấy trạng thái đơn mới nhất (mỗi 5-10s);
+
+|Customer|
+:Theo dõi tiến trình đơn hàng trên thiết bị;
+
+|Barista|
+:Đăng nhập màn hình Quản lý quầy pha chế;
+:Xem danh sách đơn hàng đã thanh toán (GET /orders?status=PAID);
+:Tiếp nhận đơn và bấm "Bắt đầu pha chế";
+
+|Backend|
+:Xác thực phân quyền STAFF (PATCH /orders/:id/status);
+:Kiểm tra chuyển trạng thái hợp lệ (PAID -> PREPARING);
+:Cập nhật trạng thái đơn sang PREPARING;
+
+|Barista|
+:Thực hiện pha chế đồ uống theo chi tiết Size và Topping;
+:Pha chế xong, đóng gói đồ uống và bấm "Sẵn sàng nhận";
+
+|Backend|
+:Xác thực phân quyền STAFF;
+:Kiểm tra chuyển trạng thái hợp lệ (PREPARING -> READY);
+:Cập nhật trạng thái đơn sang READY;
+
+|Frontend|
+:Polling nhận trạng thái mới READY;
+:Hiển thị thông báo: "Đồ uống đã sẵn sàng, mời bạn nhận tại quầy!";
+
+|Customer|
+:Đến quầy nhận đồ uống và đọc mã đơn hàng;
+
+|Barista|
+:Đối chiếu mã đơn hàng và trao đồ uống cho khách;
+:Bấm "Hoàn tất đơn hàng" trên màn hình quầy;
+
+|Backend|
+:Xác thực phân quyền STAFF;
+:Kiểm tra chuyển trạng thái hợp lệ (READY -> COMPLETED);
+:Cập nhật trạng thái đơn sang COMPLETED (Trạng thái kết thúc);
+
+|Frontend|
+:Polling nhận trạng thái COMPLETED;
+:Hiển thị thông báo đơn hàng hoàn tất;
+
+|Customer|
+:Nhận đồ uống thành công và thưởng thức;
+stop
+@enduml
