@@ -406,4 +406,71 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       await http().get('/orders/99999').set(auth(t)).expect(404);
     });
   });
+
+  describe('Thanh toán Ví/Thẻ mô phỏng (FR-24, FR-25, FR-26, FR-27)', () => {
+    const CARD_OK = { number: '4111111111111111', expiry: '12/30', cvv: '987' };
+    const payMock = (t: string, body: any, headers: any = key()) => http().post('/payments').set(auth(t)).set(headers).send(body);
+    const newOrder = async (t: string) => (await placeOrder(t, [{ productId: 1, sizeId: 1, quantity: 2 }]).expect(201)).body;
+
+    it('ví đủ tiền: đơn PAID, trừ đúng số dư; gửi lặp cùng key không trừ tiền lần hai', async () => {
+      const t = await register('wallet-ok@test.vn');
+      const order = await newOrder(t);
+      const k = key();
+      const first = (await payMock(t, { orderId: order.id, method: 'WALLET' }, k).expect(200)).body;
+      expect(first).toMatchObject({ method: 'WALLET', paymentStatus: 'SUCCESS', orderStatus: 'PAID', errorCode: null, walletBalance: 200000 - order.totalAmount });
+
+      const again = (await payMock(t, { orderId: order.id, method: 'WALLET' }, k).expect(200)).body;
+      expect(again).toEqual(first);
+      expect(await prisma.payment.count({ where: { orderId: order.id } })).toBe(1);
+      await payMock(t, { orderId: order.id, method: 'WALLET' }).expect(409); // đơn đã PAID
+    });
+
+    it('ví không đủ: Payment FAILED kèm mã lỗi, đơn PAYMENT_FAILED; thanh toán lại bằng thẻ test thì PAID', async () => {
+      const t = await register('wallet-low@test.vn');
+      const order = await newOrder(t);
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: 'wallet-low@test.vn' } });
+      await prisma.user.update({ where: { id: user.id }, data: { walletBalance: 1000 } });
+
+      const failed = (await payMock(t, { orderId: order.id, method: 'WALLET' }).expect(200)).body;
+      expect(failed).toMatchObject({ paymentStatus: 'FAILED', orderStatus: 'PAYMENT_FAILED', errorCode: 'WALLET_INSUFFICIENT_BALANCE', walletBalance: 1000 });
+
+      const retry = (await payMock(t, { orderId: order.id, method: 'CARD', card: CARD_OK }).expect(200)).body;
+      expect(retry).toMatchObject({ paymentStatus: 'SUCCESS', orderStatus: 'PAID', cardLast4: '1111' });
+      expect(await prisma.payment.count({ where: { orderId: order.id } })).toBe(2);
+    });
+
+    it('thẻ bị từ chối / hết hạn; DB chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ hay CVV', async () => {
+      const t = await register('card@test.vn');
+      const order = await newOrder(t);
+      const declined = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, number: '4000000000000002' } }).expect(200)).body;
+      expect(declined).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_DECLINED', orderStatus: 'PAYMENT_FAILED', cardLast4: '0002' });
+      const expired = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, expiry: '01/20' } }).expect(200)).body;
+      expect(expired).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_EXPIRED' });
+
+      const rows = await prisma.$queryRawUnsafe<{ j: string }[]>('SELECT row_to_json(p)::text AS j FROM "Payment" p WHERE "orderId" = $1', order.id);
+      expect(rows).toHaveLength(2);
+      for (const r of rows) {
+        expect(r.j).not.toContain('4000000000000002');
+        expect(r.j).not.toContain('4111111111111111');
+        expect(r.j).not.toContain('"987"');
+      }
+    });
+
+    it('dữ liệu sai → 400, thiếu key → 400, key dùng cho yêu cầu khác → 409, chưa đăng nhập → 401', async () => {
+      const t = await register('mock-bad@test.vn');
+      const order = await newOrder(t);
+      await payMock(t, { orderId: order.id, method: 'CASH' }).expect(400);
+      await payMock(t, { orderId: order.id, method: 'CARD' }).expect(400);
+      await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, number: '4111' } }).expect(400);
+      await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, expiry: '13/30' } }).expect(400);
+      await payMock(t, { orderId: order.id, method: 'WALLET' }, {}).expect(400);
+
+      const k = key();
+      await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, number: '4000000000000002' } }, k).expect(200);
+      await payMock(t, { orderId: order.id, method: 'WALLET' }, k).expect(409);
+      await http().post('/payments').set(key()).send({ orderId: order.id, method: 'WALLET' }).expect(401);
+      const other = await register('mock-other@test.vn');
+      await payMock(other, { orderId: order.id, method: 'WALLET' }).expect(404);
+    });
+  });
 });

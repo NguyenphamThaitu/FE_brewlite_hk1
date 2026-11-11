@@ -30,13 +30,15 @@ enum PaymentStatus {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  email        String     @unique
-  passwordHash String
-  fullName     String
-  role         Role       @default(CUSTOMER)
-  createdAt    DateTime   @default(now())
-  orders       Order[]
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  passwordHash  String
+  fullName      String
+  role          Role     @default(CUSTOMER)
+  /// Số dư ví mô phỏng (VND) – mỗi tài khoản mới được cấp sẵn để thử thanh toán WALLET
+  walletBalance Int      @default(200000)
+  createdAt     DateTime @default(now())
+  orders        Order[]
 }
 
 /// Nguyên liệu trong kho. quantity = lượng còn lại (theo unit)
@@ -72,11 +74,11 @@ model ProductIngredient {
 }
 
 model Size {
-  id               Int        @id @default(autoincrement())
+  id               Int     @id @default(autoincrement())
   name             String
-  extraPrice       Int        @default(0)
+  extraPrice       Int     @default(0)
   /// Hệ số nhân công thức (S=1, M=1.25, L=1.5)
-  recipeMultiplier Decimal    @default(1) @db.Decimal(4, 2)
+  recipeMultiplier Decimal @default(1) @db.Decimal(4, 2)
 }
 
 model Topping {
@@ -118,20 +120,23 @@ model OrderItem {
 }
 
 model Payment {
-  id                Int           @id @default(autoincrement())
-  orderId           Int
-  method            String        @default("VNPAY")
-  amount            Int
-  status            PaymentStatus @default(PENDING)
-  /// vnp_TxnRef gửi sang VNPay – duy nhất
-  txnRef            String        @unique
+  id               Int           @id @default(autoincrement())
+  orderId          Int
+  /// VNPAY | WALLET | CARD
+  method           String        @default("VNPAY")
+  amount           Int
+  status           PaymentStatus @default(PENDING)
+  /// Mã giao dịch duy nhất (với VNPay là vnp_TxnRef)
+  txnRef           String        @unique
   /// Header Idempotency-Key của request tạo giao dịch – gửi lại cùng key không tạo giao dịch mới
-  idempotencyKey    String?       @unique
-  vnpTransactionNo  String?
-  responseCode      String?
-  createdAt         DateTime      @default(now())
-  paidAt            DateTime?
-  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  idempotencyKey   String?       @unique
+  vnpTransactionNo String?
+  responseCode     String?
+  /// Thẻ mô phỏng: chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ, hạn thẻ hay CVV
+  cardLast4        String?
+  createdAt        DateTime      @default(now())
+  paidAt           DateTime?
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
 }
