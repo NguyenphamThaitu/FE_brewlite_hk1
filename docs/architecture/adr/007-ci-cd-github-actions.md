@@ -2,7 +2,7 @@
 
 - Trạng thái: CI – Accepted (đã chạy, PR #4) · CD – Proposed (chờ Thái Tú dựng pipeline)
 - Ngày: 2026-11-10
-- Liên quan: Task 4.4, Task 5.3, NFR-12, NFR-13, ADR-002, ADR-003
+- Liên quan: Task 4, Task 5, NFR-20, NFR-21, NFR-22, ADR-002, ADR-003
 
 ## Bối cảnh
 

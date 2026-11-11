@@ -1,8 +1,14 @@
 # ADR-005: Thanh toán qua VNPay sandbox, chống xử lý trùng
 
-- Trạng thái: Accepted (đã hiện thực ở PR #3); SRS FR-06 cần cập nhật cho khớp
+- Trạng thái: Superseded một phần by [ADR-008](008-simulated-wallet-card-payment.md) (2026-11-11).
+  Còn hiệu lực: luồng VNPay sandbox (ký HMAC, IPN/Return dùng chung hàm, cập nhật có điều kiện).
+  Đã thay: phương thức chính là Ví/Thẻ mô phỏng, chống trùng bằng `Idempotency-Key`, thanh toán lỗi
+  chuyển `PAYMENT_FAILED` thay vì hủy đơn.
 - Ngày: 2026-11-10
-- Liên quan: FR-06, FR-08, NFR-17, UC-01, sequence diagram checkout
+- Liên quan: FR-26, FR-27, FR-39, NFR-16, UC-01
+
+> Phần dưới giữ nguyên nội dung lúc quyết định để truy vết. Số FR trong mục "Hệ quả" là số của bản
+> SRS cũ (PR #1), trước khi SRS được đánh số lại ở PR #15.
 
 ## Bối cảnh
 

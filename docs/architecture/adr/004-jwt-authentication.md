@@ -2,7 +2,7 @@
 
 - Trạng thái: Accepted
 - Ngày: 2026-11-10
-- Liên quan: FR-04, FR-07, FR-08, NFR-03, NFR-04, UC-05, UC-06, UC-11
+- Liên quan: FR-14 → FR-18, NFR-04, NFR-05, UC-05, UC-06, UC-11
 
 ## Bối cảnh
 
