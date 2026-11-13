@@ -37,3 +37,34 @@ jobs:
         run: npm run build
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/brewlite
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install (cài thư viện)
+        run: npm ci
+
+      - name: Lint (kiểm tra lỗi code)
+        run: npm run lint
+
+      - name: Unit Test (chạy kiểm thử)
+        run: npm test
+
+      - name: Build (biên dịch thử)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
