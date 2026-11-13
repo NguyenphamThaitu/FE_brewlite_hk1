@@ -1,0 +1,167 @@
+@startuml activity-order-flow
+' BrewLite - So do hoat dong: Luong dat mon va thanh toan (Task 2.1)
+' Mo ta: docs/diagrams/activity-order-flow.md
+' Nguoi thuc hien: Tran Minh Tri (3124410371) - Reviewer: Quach Van Truong
+' Can cu de bai: Muc 1.1 (Luong toi thieu) & Muc 4.1 (Yeu cau Activity diagram)
+
+skinparam defaultFontName Arial
+skinparam monochrome false
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam ActivityFontSize 12
+skinparam ArrowFontSize 11
+skinparam SwimlaneTitleFontSize 13
+skinparam SwimlaneTitleFontStyle bold
+
+skinparam activity {
+  BackgroundColor #FFF8EE
+  BorderColor #8A5A2B
+  ArrowColor #8A5A2B
+}
+
+title **BREWLITE — SƠ ĐỒ HOẠT ĐỘNG LUỒNG ĐẶT MÓN VÀ THANH TOÁN (END-TO-END)**\n//Task 2.1 - Bám sát luồng tối thiểu: Menu → Tùy chọn → Giỏ hàng → Đặt đơn → Thanh toán → Theo dõi đơn//
+
+|#E8F4F8|Customer| Khách hàng
+|#FFF8E7|Frontend| Giao diện Next.js
+|#EBF5FB|Backend| NestJS API & PostgreSQL
+|#F5EEF8|PaymentGateway| Cổng thanh toán (Mock)
+
+|Customer|
+start
+:Mở ứng dụng BrewLite;
+
+|Frontend|
+:1. Xem menu: Gửi yêu cầu lấy thực đơn (GET /products);
+
+|Backend|
+:Truy vấn danh mục món và trạng thái còn bán;
+:Trả về danh sách món (JSON);
+
+|Frontend|
+:Hiển thị thực đơn đồ uống;
+
+|Customer|
+:2. Chọn tùy chọn: Chọn món, kích cỡ (Size S/M/L) và Topping;
+:Bấm "Thêm vào giỏ hàng";
+
+|Frontend|
+:3. Giỏ hàng: Lưu món vào giỏ hàng (localStorage);
+:Tính tạm tính tổng tiền;
+
+|Customer|
+:Kiểm tra giỏ hàng và bấm "Đặt đơn";
+
+|Frontend|
+' ===== RẼ NHÁNH 1: CHƯA ĐĂNG NHẬP =====
+if (Khách hàng đã đăng nhập?) then (Chưa đăng nhập)
+    |Customer|
+    :Chuyển đến màn hình Đăng nhập;
+    :Nhập Email và Mật khẩu;
+    
+    |Frontend|
+    :Gửi thông tin đăng nhập (POST /auth/login);
+    
+    |Backend|
+    :Xác thực tài khoản và cấp JWT Token;
+    
+    |Frontend|
+    :Lưu JWT Token, giữ nguyên giỏ hàng;
+else (Đã đăng nhập)
+endif
+
+|Frontend|
+:4. Đặt đơn: Gửi yêu cầu tạo đơn (POST /orders kèm Bearer Token);
+
+|Backend|
+:Xác thực JWT Token & Validate dữ liệu giỏ hàng;
+:Bắt đầu Database Transaction;
+:Khóa dòng kiểm tra tồn kho nguyên liệu (SELECT ... FOR UPDATE);
+
+' ===== RẼ NHÁNH 2: HẾT HÀNG / THIẾU TỒN KHO =====
+if (Tồn kho nguyên liệu đủ?) then (Hết hàng / Không đủ)
+    :Rollback Transaction;
+    :Trả về lỗi 409 Conflict (báo thiếu nguyên liệu);
+    
+    |Frontend|
+    :Hiển thị cảnh báo món đã hết hàng;
+    
+    |Customer|
+    :Xem thông báo, cập nhật lại giỏ hàng;
+    stop
+else (Đủ tồn kho)
+    |Backend|
+    :Trừ số lượng tồn kho nguyên liệu theo công thức món;
+    :Tính lại tổng tiền đơn hàng phía server (chống sửa giá);
+    :Tạo đơn hàng (PENDING_PAYMENT) và các chi tiết đơn;
+    :Commit Transaction thành công;
+    :Trả về thông tin đơn và orderId (201 Created);
+endif
+
+|Frontend|
+:Nhận orderId, chuyển sang màn hình Thanh toán;
+
+|Customer|
+:5. Thanh toán: Chọn phương thức (Ví hoặc Thẻ) và bấm "Xác nhận";
+
+|Frontend|
+:Sinh Idempotency-Key (UUIDv4) chống thanh toán trùng lặp;
+:Gửi yêu cầu thanh toán (POST /payments kèm Idempotency-Key);
+
+|Backend|
+:Kiểm tra Idempotency-Key và đơn PENDING_PAYMENT;
+:Tạo giao dịch thanh toán (PENDING);
+:Chuyển tiếp yêu cầu sang Cổng thanh toán;
+
+|PaymentGateway|
+:Xử lý giao dịch trừ Ví hoặc xác thực Thẻ;
+
+' ===== RẼ NHÁNH 3: KẾT QUẢ THANH TOÁN =====
+if (Kết quả thanh toán?) then (Thất bại: Ví thiếu tiền / Thẻ từ chối)
+    |PaymentGateway|
+    :Trả về thông báo lỗi giao dịch;
+    
+    |Backend|
+    :Cập nhật Payment = FAILED;
+    :Cập nhật đơn hàng = PAYMENT_FAILED (giữ nguyên tồn kho);
+    :Trả về kết quả thất bại (canRetry: true);
+    
+    |Frontend|
+    :Hiển thị thông báo thanh toán thất bại;
+    
+    |Customer|
+    if (Khách hàng xử lý tiếp theo?) then (Thanh toán lại)
+        :Chọn lại phương thức thanh toán hoặc đổi thẻ;
+        detach
+    else (Hủy đơn)
+        |Customer|
+        :Bấm "Hủy đơn";
+        
+        |Frontend|
+        :Gửi yêu cầu hủy đơn (POST /orders/:id/cancel);
+        
+        |Backend|
+        :Hủy đơn (CANCELLED) và hoàn lại nguyên liệu vào kho;
+        
+        |Frontend|
+        :Báo đơn hàng đã hủy thành công;
+        stop
+    endif
+else (Thành công)
+    |PaymentGateway|
+    :Trả về kết quả thành công và mã giao dịch;
+endif
+
+|Backend|
+:Cập nhật Payment = SUCCESS;
+:Cập nhật trạng thái đơn hàng = PAID;
+:Trả về kết quả thanh toán thành công (200 OK);
+
+|Frontend|
+:Xóa giỏ hàng cục bộ (localStorage);
+:6. Theo dõi đơn: Chuyển sang màn hình Theo dõi đơn hàng (/orders/[id]);
+:Hiển thị huy hiệu "ĐÃ THANH TOÁN (PAID)" và chi tiết đơn;
+
+|Customer|
+:Xem mã đơn hàng và theo dõi trạng thái đơn đã thanh toán;
+stop
+@enduml
