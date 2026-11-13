@@ -23,6 +23,9 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       AUTO_SEED: ${AUTO_SEED:-true}
       STAFF_PASSWORD: ${STAFF_PASSWORD:-Staff@123}
+      # Tự hủy đơn chưa thanh toán quá hạn (FR-22)
+      ORDER_PAYMENT_TIMEOUT_MINUTES: ${ORDER_PAYMENT_TIMEOUT_MINUTES:-15}
+      ORDER_EXPIRY_CHECK_INTERVAL_SECONDS: ${ORDER_EXPIRY_CHECK_INTERVAL_SECONDS:-60}
       # VNPay sandbox (không bắt buộc): để trống thì POST /payments/vnpay trả 503, Ví/Thẻ mô phỏng vẫn chạy
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
