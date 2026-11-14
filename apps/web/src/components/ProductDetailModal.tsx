@@ -300,7 +300,10 @@ export default function ProductDetailModal({
               <ShoppingBag className="w-5 h-5" />
               <span>{isAdding ? "Đang thêm..." : "Thêm vào giỏ hàng"}</span>
             </div>
-            <span className="text-base font-extrabold tracking-wide">
+            <span
+              data-testid="modal-total-price"
+              className="text-base font-extrabold tracking-wide"
+            >
               {formatPrice(totalPrice)}
             </span>
           </button>
