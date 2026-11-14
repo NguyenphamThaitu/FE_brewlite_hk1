@@ -2,15 +2,14 @@ import { Product, SizeOption, Topping } from "@/types/product";
 
 export const SIZE_OPTIONS: SizeOption[] = [
   { size: "S", name: "Nhỏ (S)", extraPrice: 0 },
-  { size: "M", name: "Vừa (M)", extraPrice: 5000 },
+  { size: "M", name: "Vừa (M)", extraPrice: 6000 },
   { size: "L", name: "Lớn (L)", extraPrice: 10000 },
 ];
 
 export const AVAILABLE_TOPPINGS: Topping[] = [
-  { id: "top-1", name: "Trân châu trắng", price: 8000 },
-  { id: "top-2", name: "Thạch cà phê giòn", price: 8000 },
-  { id: "top-3", name: "Kem Cheese Macchiato", price: 10000 },
-  { id: "top-4", name: "Thêm 1 Shot Espresso", price: 12000 },
+  { id: "top-1", name: "Trân châu đen", price: 7000 },
+  { id: "top-2", name: "Thạch dừa", price: 6000 },
+  { id: "top-3", name: "Kem cheese", price: 10000 },
 ];
 
 export const CATEGORIES = [
