@@ -39,6 +39,8 @@ model User {
   walletBalance Int      @default(200000)
   createdAt     DateTime @default(now())
   orders        Order[]
+  /// Các lần đổi trạng thái đơn do người này thực hiện (FR-34)
+  statusChanges OrderStatusHistory[]
 }
 
 /// Nguyên liệu trong kho. quantity = lượng còn lại (theo unit)
@@ -102,8 +104,29 @@ model Order {
   user            User        @relation(fields: [userId], references: [id])
   items           OrderItem[]
   payments        Payment[]
+  statusHistory   OrderStatusHistory[]
 
   @@index([userId])
+  /// Danh sách đơn cho nhân viên (FR-33) và quét đơn quá hạn thanh toán (FR-22)
+  @@index([status, createdAt])
+}
+
+/// Lịch sử đổi trạng thái đơn (FR-34): mỗi lần đổi ghi một dòng, gồm thời điểm và người thực hiện.
+/// changedById = null khi hệ thống tự đổi (IPN VNPay, tự hủy đơn quá hạn).
+model OrderStatusHistory {
+  id          Int          @id @default(autoincrement())
+  orderId     Int
+  /// null ở dòng đầu tiên (lúc tạo đơn)
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  changedById Int?
+  /// ORDER_CREATED | PAYMENT_SUCCESS | PAYMENT_FAILED | STAFF_UPDATE | CUSTOMER_CANCEL | AUTO_EXPIRED
+  reason      String
+  changedAt   DateTime     @default(now())
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy   User?        @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
 }
 
 model OrderItem {
