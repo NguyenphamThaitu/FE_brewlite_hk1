@@ -7,6 +7,9 @@ import ProductCard from "@/components/ProductCard";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import CartDrawer from "@/components/CartDrawer";
 import { fetchProducts } from "@/services/products";
+import { createOrder, createVnpayPayment } from "@/utils/orders-api";
+import { getStoredCart, clearCart } from "@/utils/cart";
+import { getToken } from "@/utils/auth";
 import { Product } from "@/types/product";
 import {
   Coffee,
@@ -33,6 +36,7 @@ export default function MenuPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -97,6 +101,61 @@ export default function MenuPage() {
     }, 2500);
   };
 
+  const handleCheckout = async () => {
+    if (isCheckingOut) return;
+
+    const token = getToken();
+    if (!token) {
+      showToast("Vui lòng đăng nhập để thanh toán.");
+      window.location.href = "/login?redirect=/";
+      return;
+    }
+
+    const cartItems = getStoredCart();
+    if (!cartItems.length) {
+      showToast("Giỏ hàng đang trống.");
+      return;
+    }
+
+    setIsCheckingOut(true);
+
+    try {
+      const items = cartItems.map((item) => {
+        const productId = Number(item.productId);
+        const sizeId = Number(item.sizeId);
+        const quantity = Number(item.qty);
+        const toppingIds = item.toppings.map((topping) => Number(topping.id));
+
+        if (
+          !Number.isSafeInteger(productId) || productId <= 0 ||
+          !Number.isSafeInteger(sizeId) || sizeId <= 0 ||
+          !Number.isSafeInteger(quantity) || quantity <= 0 ||
+          toppingIds.some((id) => !Number.isSafeInteger(id) || id <= 0)
+        ) {
+          throw new Error("Thông tin sản phẩm trong giỏ hàng không hợp lệ. Vui lòng chọn lại sản phẩm.");
+        }
+
+        return { productId, sizeId, toppingIds, quantity };
+      });
+
+      const order = await createOrder({ items });
+      const payment = await createVnpayPayment(order.id, crypto.randomUUID());
+
+      if (!payment.paymentUrl) {
+        throw new Error("Không nhận được đường dẫn thanh toán VNPay.");
+      }
+
+      clearCart();
+      window.location.assign(payment.paymentUrl);
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra khi thanh toán. Vui lòng thử lại."
+      );
+      setIsCheckingOut(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-[#FBF7F0] text-[#2B1B12] flex flex-col font-sans selection:bg-[#E06D20] selection:text-white">
       {/* Navigation Header */}
@@ -494,6 +553,7 @@ export default function MenuPage() {
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
+  onCheckout={handleCheckout}
       />
 
       {/* Toast Notification */}
