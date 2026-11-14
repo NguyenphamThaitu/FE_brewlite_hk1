@@ -11,7 +11,10 @@ const DEFAULT_DRINK_IMAGE =
 
 const getFallbackImage = (name: string): string => {
   const lower = name.toLowerCase();
-  if (lower.includes("matcha") || lower.includes("trà sữa")) {
+  if (lower.includes("matcha")) {
+    return "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("trà sữa")) {
     return "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&auto=format&fit=crop&q=80";
   }
   if (lower.includes("đào") || lower.includes("trà")) {
@@ -21,6 +24,18 @@ const getFallbackImage = (name: string): string => {
     return "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=600&auto=format&fit=crop&q=80";
   }
   return DEFAULT_DRINK_IMAGE;
+};
+
+const inferCategoryName = (name: string, explicitCategory?: string | null): string => {
+  if (explicitCategory?.trim()) return explicitCategory.trim();
+  const lower = name.toLowerCase();
+  if (lower.includes("matcha") || lower.includes("trà")) {
+    return "Trà & Matcha";
+  }
+  if (lower.includes("cà phê") || lower.includes("bạc xỉu") || lower.includes("cold brew") || lower.includes("americano") || lower.includes("macchiato")) {
+    return "Cà phê Phin & Máy";
+  }
+  return "Đồ uống";
 };
 
 interface ApiProductRaw {
@@ -60,7 +75,7 @@ const toCategoryId = (categoryName: string): string => {
 };
 
 export const normalizeProduct = (raw: ApiProductRaw): Product => {
-  const categoryName = raw.category?.trim() || "Đồ uống";
+  const categoryName = inferCategoryName(raw.name, raw.category);
   return {
     id: raw.id,
     name: raw.name,
