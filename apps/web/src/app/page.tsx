@@ -125,7 +125,7 @@ export default function MenuPage() {
               <p className="text-sm sm:text-base text-[#685344] max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed">
                 Với hương vị cà phê đậm đà và tự nhiên từ những hạt cafe chọn lọc.
                 Tùy biến kích cỡ S/M/L, thêm topping yêu thích và thanh toán nhanh
-                chóng ngay trên trình duyệt.
+                chóng.
               </p>
 
               {/* Primary CTA Button */}
