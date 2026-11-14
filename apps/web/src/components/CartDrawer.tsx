@@ -115,7 +115,7 @@ export default function CartDrawer({
 
                     <p className="text-xs text-[#E06D20] font-bold mt-0.5">
                       Size {item.size}
-                      {item.toppings.length > 0 && (" - " + item.toppings.map((t) => t.name).join(", "))}
+                      {item.toppings.length > 0 && (" • " + item.toppings.map((t) => t.name).join(", "))}
                     </p>
 
                     {item.note && (
@@ -183,6 +183,7 @@ export default function CartDrawer({
                 </button>
                 <button
                   type="button"
+                  data-testid="cart-checkout-button"
                   onClick={onCheckout}
                   disabled={!onCheckout}
                   className="flex-1 py-3 px-4 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-bold shadow-md shadow-orange-950/15 flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
