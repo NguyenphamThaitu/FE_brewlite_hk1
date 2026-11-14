@@ -44,17 +44,25 @@ services:
       start_period: 30s
 
   web:
-    # Tạm tắt cho đến khi Minh Trí đẩy code apps/web lên.
-    # Khi có code, XÓA hai dòng "profiles" bên dưới.
-    profiles: ["web"]
     build:
       context: ./apps/web
       args:
+        # Trình duyệt gọi API trực tiếp nên dùng địa chỉ máy host, không dùng tên service "api"
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
 volumes:
   pgdata:
