@@ -126,5 +126,16 @@ export const MOCK_PRODUCTS: Product[] = [
     stock: 0, // Out of stock example to test FR-01 condition
     imageUrl: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=600&auto=format&fit=crop&q=80",
   },
+  {
+    id: "prod-11",
+    name: "Matcha Latte Nhật Bản",
+    categoryId: "tea",
+    categoryName: "Trà Trái Cây & Macchiato",
+    description: "Bột Matcha Uji thượng hạng từ Nhật Bản đánh tan cùng sữa tươi thanh trùng béo ngậy, ngọt dịu thanh mát.",
+    basePrice: 45000,
+    stock: 20,
+    imageUrl: "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=600&auto=format&fit=crop&q=80",
+    isPopular: true,
+  },
 ];
 
