@@ -19,8 +19,6 @@ import {
   ShieldCheck,
   Clock,
   Star,
-  CupSoda,
-  Leaf,
 } from "lucide-react";
 
 export default function MenuPage() {
@@ -130,19 +128,14 @@ export default function MenuPage() {
                 chóng ngay trên trình duyệt.
               </p>
 
-              {/* CTA Buttons */}
+              {/* Primary CTA Button */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-1">
                 <a
                   href="#menu"
-                  className="px-7 py-3.5 min-h-[48px] rounded-full bg-[#E06D20] hover:bg-[#C85A12] text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-orange-950/20 transition active:scale-95 inline-flex items-center gap-2"
+                  className="px-8 py-4 min-h-[50px] rounded-full bg-[#E06D20] hover:bg-[#C85A12] text-white text-sm font-extrabold shadow-lg shadow-orange-950/20 transition active:scale-95 inline-flex items-center gap-2.5"
                 >
-                  <span>Đặt Hàng Ngay</span>
-                </a>
-                <a
-                  href="#menu"
-                  className="px-7 py-3.5 min-h-[48px] rounded-full bg-white/90 border-2 border-[#352013] hover:bg-[#FAF3E8] text-[#2B1B12] text-xs sm:text-sm font-extrabold transition active:scale-95 inline-flex items-center gap-2 shadow-2xs"
-                >
-                  <span>Khám Phá Menu</span>
+                  <Coffee className="w-4 h-4" />
+                  <span>Khám Phá Thực Đơn & Đặt Món</span>
                 </a>
               </div>
 
@@ -169,11 +162,11 @@ export default function MenuPage() {
               </div>
             </div>
 
-            {/* Right Column: Artistic Coffee Showcase Composition */}
+            {/* Right Column: Signature Collection Photo Showcase */}
             <div className="lg:col-span-5 relative flex items-center justify-center">
               {/* Warm Sand Organic Stage */}
               <div className="relative w-full max-w-md aspect-[4/3.6] rounded-[40px] bg-gradient-to-br from-[#EFE3D2] via-[#E8D7C1] to-[#DFC8AC] p-5 sm:p-6 shadow-xl shadow-stone-900/8 border border-white/70 flex flex-col justify-between overflow-hidden">
-                {/* Decorative Leaf / Bean Badges */}
+                {/* Decorative Top Badges */}
                 <div className="flex items-center justify-between relative z-10">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-[11px] font-extrabold text-[#2B1B12] shadow-xs">
                     <Flame className="w-3.5 h-3.5 text-[#E06D20] fill-current" />
@@ -184,25 +177,55 @@ export default function MenuPage() {
                   </span>
                 </div>
 
-                {/* Illustrated Trio Drink Showcase Cards */}
+                {/* Real Drink Photo Trio Showcase Cards */}
                 <div className="grid grid-cols-3 gap-2.5 sm:gap-3 my-auto py-3 relative z-10">
-                  {/* Drink 1: Iced Latte */}
-                  <div className="bg-white/95 backdrop-blur-md rounded-2xl p-3 border border-white shadow-md flex flex-col items-center text-center transform -rotate-2 hover:rotate-0 transition">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#8B5A2B] to-[#4A2C11] flex items-center justify-center text-amber-100 shadow-inner mb-2">
-                      <Coffee className="w-6 h-6 sm:w-7 sm:h-7" />
+                  {/* Drink 1: Cà Phê Sữa Đá / Muối */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const found = products.find(
+                        (p) =>
+                          p.name.toLowerCase().includes("cà phê sữa") ||
+                          p.name.toLowerCase().includes("cà phê muối")
+                      );
+                      if (found) setSelectedProduct(found);
+                      else document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="group bg-white/95 backdrop-blur-md rounded-2xl p-2.5 border border-white shadow-md flex flex-col items-center text-center transform -rotate-2 hover:rotate-0 hover:-translate-y-1 transition cursor-pointer"
+                  >
+                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
+                      <img
+                        src="https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=400&auto=format&fit=crop&q=80"
+                        alt="Cà Phê Phin Sữa"
+                        className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                      />
                     </div>
                     <p className="text-[11px] font-extrabold text-[#2B1B12] line-clamp-1">
-                      Cà Phê Muối
+                      Cà Phê Sữa Đá
                     </p>
                     <span className="text-[10px] font-bold text-[#E06D20] mt-0.5">
                       29.000 ₫
                     </span>
-                  </div>
+                  </button>
 
-                  {/* Drink 2: Peach Tea (Center Elevated) */}
-                  <div className="bg-white rounded-2xl p-3 border-2 border-[#E06D20]/40 shadow-lg flex flex-col items-center text-center transform -translate-y-2 scale-105 transition">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#EA7B26] to-[#B8470B] flex items-center justify-center text-white shadow-inner mb-2">
-                      <CupSoda className="w-6 h-6 sm:w-7 sm:h-7" />
+                  {/* Drink 2: Trà Đào Cam Sả (Center Elevated) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const found = products.find((p) =>
+                        p.name.toLowerCase().includes("trà đào")
+                      );
+                      if (found) setSelectedProduct(found);
+                      else document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="group bg-white rounded-2xl p-2.5 border-2 border-[#E06D20]/40 shadow-lg flex flex-col items-center text-center transform -translate-y-2 scale-105 hover:-translate-y-3 transition cursor-pointer"
+                  >
+                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
+                      <img
+                        src="https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&auto=format&fit=crop&q=80"
+                        alt="Trà Đào Cam Sả"
+                        className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                      />
                     </div>
                     <p className="text-[11px] font-extrabold text-[#2B1B12] line-clamp-1">
                       Trà Đào Cam Sả
@@ -210,12 +233,26 @@ export default function MenuPage() {
                     <span className="text-[10px] font-bold text-[#E06D20] mt-0.5">
                       39.000 ₫
                     </span>
-                  </div>
+                  </button>
 
                   {/* Drink 3: Matcha Latte */}
-                  <div className="bg-white/95 backdrop-blur-md rounded-2xl p-3 border border-white shadow-md flex flex-col items-center text-center transform rotate-2 hover:rotate-0 transition">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#5B8C5A] to-[#3B623B] flex items-center justify-center text-emerald-50 shadow-inner mb-2">
-                      <Leaf className="w-6 h-6 sm:w-7 sm:h-7" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const found = products.find((p) =>
+                        p.name.toLowerCase().includes("matcha")
+                      );
+                      if (found) setSelectedProduct(found);
+                      else document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="group bg-white/95 backdrop-blur-md rounded-2xl p-2.5 border border-white shadow-md flex flex-col items-center text-center transform rotate-2 hover:rotate-0 hover:-translate-y-1 transition cursor-pointer"
+                  >
+                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
+                      <img
+                        src="https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=400&auto=format&fit=crop&q=80"
+                        alt="Matcha Latte"
+                        className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                      />
                     </div>
                     <p className="text-[11px] font-extrabold text-[#2B1B12] line-clamp-1">
                       Matcha Latte
@@ -223,7 +260,7 @@ export default function MenuPage() {
                     <span className="text-[10px] font-bold text-[#E06D20] mt-0.5">
                       45.000 ₫
                     </span>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Bottom Floating Bar inside Showcase */}
