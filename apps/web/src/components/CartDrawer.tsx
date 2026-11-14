@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { getStoredCart, subscribeCart, updateCartQty, removeFromCart, clearCart } from "@/utils/cart";
+import { getEmptyCartSnapshot, getStoredCart, subscribeCart, updateCartQty, removeFromCart, clearCart } from "@/utils/cart";
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
 
 interface CartDrawerProps {
@@ -11,7 +11,11 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
-  const items = useSyncExternalStore(subscribeCart, getStoredCart, () => []);
+  const items = useSyncExternalStore(
+    subscribeCart,
+    getStoredCart,
+    getEmptyCartSnapshot
+  );
 
   if (!isOpen) return null;
 
@@ -35,18 +39,18 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
           {/* Header */}
-          <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
+          <div className="p-6 border-b border-[#EFE7DC] bg-[#FAF7F2] flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShoppingBag className="w-6 h-6 text-amber-800" />
-              <h2 className="text-xl font-bold text-neutral-900">Giỏ hàng của bạn</h2>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+              <ShoppingBag className="w-5 h-5 text-[#E06D20]" />
+              <h2 className="text-xl font-bold text-[#2B1B12]">Giỏ hàng của bạn</h2>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#F3EDE2] text-[#8C5325]">
                 {items.reduce((acc, i) => acc + i.qty, 0)} món
               </span>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="w-9 h-9 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 transition"
+              className="w-9 h-9 rounded-full bg-white border border-[#E5DACD] hover:bg-[#FAF5EE] flex items-center justify-center text-[#4A3528] transition"
               aria-label="Đóng giỏ hàng"
             >
               <X className="w-5 h-5" />
@@ -54,24 +58,24 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           </div>
 
           {/* Cart Item List */}
-          <div className="flex-1 overflow-y-auto p-6 divide-y divide-neutral-100">
+          <div className="flex-1 overflow-y-auto p-6 divide-y divide-[#EFE7DC]">
             {items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-                <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-700">
+                <div className="w-20 h-20 rounded-full bg-[#FAF5EE] flex items-center justify-center text-[#E06D20]">
                   <ShoppingBag className="w-10 h-10 stroke-[1.5]" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="font-bold text-lg text-neutral-900">
+                  <h3 className="font-bold text-lg text-[#2B1B12]">
                     Giỏ hàng đang trống
                   </h3>
-                  <p className="text-xs text-neutral-500 max-w-xs">
+                  <p className="text-xs text-[#786354] max-w-xs">
                     Hãy dạo quanh thực đơn và chọn cho mình một ly đồ uống thơm ngon nhé!
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-amber-700 text-white font-semibold text-sm hover:bg-amber-800 transition"
+                  className="px-6 py-2.5 rounded-full bg-[#E06D20] text-white font-bold text-xs hover:bg-[#C95E16] shadow-md shadow-orange-950/15 transition"
                 >
                   Xem thực đơn ngay
                 </button>
@@ -82,58 +86,58 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   <img
                     src={item.imageUrl}
                     alt={item.name}
-                    className="w-16 h-16 rounded-xl object-cover bg-neutral-100 flex-shrink-0"
+                    className="w-16 h-16 rounded-xl object-cover bg-[#FAF5EE] flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-bold text-sm text-neutral-900 truncate">
+                      <h4 className="font-bold text-sm text-[#2B1B12] truncate">
                         {item.name}
                       </h4>
                       <button
                         type="button"
                         onClick={() => removeFromCart(item.id)}
-                        className="text-neutral-400 hover:text-red-500 p-1 transition"
+                        className="text-[#9C8A7B] hover:text-red-600 p-1 transition"
                         title="Xóa món"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    <p className="text-xs text-amber-800 font-semibold mt-0.5">
+                    <p className="text-xs text-[#E06D20] font-bold mt-0.5">
                       Size {item.size}
                       {item.toppings.length > 0 &&
                         ` • ${item.toppings.map((t) => t.name).join(", ")}`}
                     </p>
 
                     {item.note && (
-                      <p className="text-xs text-neutral-400 italic mt-0.5">
+                      <p className="text-xs text-[#786354] italic mt-0.5">
                         Ghi chú: {item.note}
                       </p>
                     )}
 
                     <div className="mt-3 flex items-center justify-between">
                       {/* Qty Controller */}
-                      <div className="flex items-center border border-neutral-200 rounded-lg p-0.5 bg-neutral-50">
+                      <div className="flex items-center border border-[#E5DACD] rounded-full p-0.5 bg-[#FAF7F2]">
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.id, item.qty - 1)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-neutral-600 hover:bg-white transition"
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-[#4A3528] hover:bg-white transition"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="w-7 text-center text-xs font-bold text-neutral-900">
+                        <span className="w-7 text-center text-xs font-bold text-[#2B1B12]">
                           {item.qty}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.id, item.qty + 1)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-neutral-600 hover:bg-white transition"
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-[#4A3528] hover:bg-white transition"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
 
-                      <span className="text-sm font-extrabold text-neutral-900">
+                      <span className="text-sm font-extrabold text-[#2B1B12]">
                         {formatPrice(item.totalPrice)}
                       </span>
                     </div>
@@ -145,16 +149,16 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
           {/* Footer Checkout Summary */}
           {items.length > 0 && (
-            <div className="p-6 bg-neutral-50 border-t border-neutral-100 space-y-4">
-              <div className="flex items-center justify-between text-xs text-neutral-500">
+            <div className="p-6 bg-[#FAF7F2] border-t border-[#EFE7DC] space-y-4">
+              <div className="flex items-center justify-between text-xs text-[#786354]">
                 <span>Tạm tính hàng ({items.reduce((s, i) => s + i.qty, 0)} món)</span>
-                <span className="font-semibold text-neutral-900">
+                <span className="font-bold text-[#2B1B12]">
                   {formatPrice(totalAmount)}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-base font-extrabold text-neutral-900">
+              <div className="flex items-center justify-between text-base font-extrabold text-[#2B1B12]">
                 <span>Tổng thanh toán</span>
-                <span className="text-xl text-amber-800">
+                <span className="text-xl text-[#E06D20]">
                   {formatPrice(totalAmount)}
                 </span>
               </div>
@@ -163,7 +167,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <button
                   type="button"
                   onClick={clearCart}
-                  className="px-3 py-3 rounded-2xl border border-neutral-300 text-neutral-600 hover:bg-neutral-100 text-xs font-bold transition"
+                  className="px-3.5 py-3 rounded-full border border-[#D8CDC0] text-[#4A3528] hover:bg-[#FAF4ED] text-xs font-bold transition"
                   title="Xóa hết giỏ hàng"
                 >
                   Xóa hết
@@ -173,7 +177,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   onClick={() => {
                     alert("Tính năng Đặt hàng (FR-05 & Checkout) sẽ được kích hoạt tại Task 2 / Sprint 2!");
                   }}
-                  className="flex-1 py-3.5 px-4 rounded-2xl bg-amber-700 hover:bg-amber-800 text-white font-bold shadow-lg shadow-amber-800/20 flex items-center justify-center gap-2 transition active:scale-95"
+                  className="flex-1 py-3 px-4 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-bold shadow-md shadow-orange-950/15 flex items-center justify-center gap-2 transition active:scale-95"
                 >
                   <span>Đặt hàng & Thanh toán</span>
                   <ArrowRight className="w-4 h-4" />

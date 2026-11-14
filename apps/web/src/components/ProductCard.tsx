@@ -1,7 +1,7 @@
 "use client";
 
 import { Product } from "@/types/product";
-import { Plus, Flame, AlertCircle } from "lucide-react";
+import { Plus, Flame, AlertCircle, Star } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
@@ -9,7 +9,9 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onSelect }: ProductCardProps) {
-  const isOutOfStock = product.stock <= 0;
+  const isOutOfStock =
+    product.available === false ||
+    (typeof product.stock === "number" && product.stock <= 0);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -21,57 +23,75 @@ export default function ProductCard({ product, onSelect }: ProductCardProps) {
   return (
     <div
       onClick={() => !isOutOfStock && onSelect(product)}
-      className={`group relative flex flex-col justify-between bg-white rounded-3xl p-4 border border-neutral-100 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+      className={`group relative flex flex-col justify-between bg-white rounded-[28px] p-4 border border-[#ECE2D4] shadow-xs transition-all duration-300 hover:shadow-xl hover:shadow-stone-900/8 hover:border-[#DFCBB2] hover:-translate-y-1.5 ${
         isOutOfStock ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
       <div>
         {/* Image Container */}
-        <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-neutral-100 mb-4">
+        <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-[#F5EFE6] mb-4 border border-[#F0E7DB]">
           <img
             src={product.imageUrl}
             alt={product.name}
-            className={`w-full h-full object-cover transition-transform duration-500 ${
-              isOutOfStock ? "grayscale" : "group-hover:scale-105"
+            className={`w-full h-full object-cover transition-transform duration-700 ${
+              isOutOfStock ? "grayscale" : "group-hover:scale-108"
             }`}
             loading="lazy"
           />
 
+          {/* Subtle Bottom Vignette */}
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent pointer-events-none" />
+
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             {product.isPopular && !isOutOfStock && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-600/90 text-white backdrop-blur-sm shadow-sm">
-                <Flame className="w-3.5 h-3.5" /> Bán chạy
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-extrabold bg-[#E06D20] text-white shadow-md shadow-orange-950/25">
+                <Flame className="w-3.5 h-3.5 fill-current" /> Bán chạy
               </span>
             )}
             {isOutOfStock && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-800/90 text-white backdrop-blur-sm">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-extrabold bg-[#2B1B12]/90 text-white backdrop-blur-xs">
                 <AlertCircle className="w-3.5 h-3.5" /> Tạm hết món
               </span>
             )}
           </div>
 
-          <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-xl text-xs font-semibold bg-black/60 text-white backdrop-blur-md">
+          <span className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#2B1B12]/80 text-[#FAF5EE] backdrop-blur-xs border border-white/15">
             {product.categoryName}
           </span>
         </div>
 
         {/* Content */}
-        <div className="space-y-1.5">
-          <h3 className="font-bold text-lg text-neutral-900 group-hover:text-amber-800 transition line-clamp-1">
+        <div className="space-y-1.5 px-0.5">
+          {/* Star Rating & Size Hint */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-0.5 text-amber-400">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star key={star} className="w-3.5 h-3.5 fill-current" />
+              ))}
+              <span className="text-[11px] font-bold text-[#786354] ml-1">4.9</span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A8878] bg-[#FAF5EE] px-2 py-0.5 rounded-md border border-[#EFE7DC]">
+              Size S • M • L
+            </span>
+          </div>
+
+          <h3 className="font-extrabold text-lg text-[#2B1B12] group-hover:text-[#E06D20] transition line-clamp-1">
             {product.name}
           </h3>
-          <p className="text-xs text-neutral-500 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-[#786354] line-clamp-2 leading-relaxed min-h-[38px]">
             {product.description}
           </p>
         </div>
       </div>
 
-      {/* Footer Info & Action */}
-      <div className="mt-5 pt-3 border-t border-neutral-100 flex items-center justify-between">
+      {/* Footer Info & Action (Matches Reference Coffee Card Layout) */}
+      <div className="mt-4 pt-3.5 border-t border-[#F2EAE0] flex items-center justify-between gap-2">
         <div>
-          <span className="text-xs text-neutral-400 font-medium">Giá tiêu chuẩn (S)</span>
-          <p className="text-lg font-extrabold text-amber-900">
+          <span className="block text-[10px] uppercase tracking-wider text-[#9C8A7B] font-bold">
+            Giá tiêu chuẩn (S)
+          </span>
+          <p className="text-lg font-black text-[#2B1B12]">
             {formatPrice(product.basePrice)}
           </p>
         </div>
@@ -83,17 +103,20 @@ export default function ProductCard({ product, onSelect }: ProductCardProps) {
             e.stopPropagation();
             if (!isOutOfStock) onSelect(product);
           }}
-          className={`flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition shadow-sm ${
+          className={`flex items-center justify-between gap-2.5 pl-4 pr-1.5 py-1.5 min-h-[44px] rounded-full text-xs font-extrabold transition-all ${
             isOutOfStock
-              ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-              : "bg-amber-100 text-amber-900 hover:bg-amber-700 hover:text-white active:scale-95"
+              ? "bg-[#F3ECE2] text-[#A89A8C] pr-4 cursor-not-allowed"
+              : "bg-[#FAF5EE] text-[#3D291D] border border-[#E2D5C4] group-hover:border-[#E06D20] hover:bg-[#FFF5EC] active:scale-95"
           }`}
         >
-          <Plus className="w-4 h-4" />
           <span>{isOutOfStock ? "Hết hàng" : "Chọn món"}</span>
+          {!isOutOfStock && (
+            <span className="w-8 h-8 rounded-full bg-[#E06D20] group-hover:bg-[#C85A12] text-white flex items-center justify-center shadow-xs transition">
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+            </span>
+          )}
         </button>
       </div>
     </div>
   );
 }
-
