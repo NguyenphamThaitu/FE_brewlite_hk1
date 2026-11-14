@@ -23,6 +23,7 @@ export default defineConfig({
       "react": path.resolve(import.meta.dirname, "./node_modules/react"),
       "react-dom": path.resolve(import.meta.dirname, "./node_modules/react-dom"),
       "@testing-library/react": path.resolve(import.meta.dirname, "./node_modules/@testing-library/react"),
+      "@testing-library/jest-dom": path.resolve(import.meta.dirname, "./node_modules/@testing-library/jest-dom"),
     },
   },
 });
