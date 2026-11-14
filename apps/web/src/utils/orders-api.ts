@@ -1,3 +1,4 @@
+
 import { getToken } from "@/utils/auth";
 import { getApiBaseUrl } from "@/services/products";
 
@@ -16,6 +17,27 @@ export interface CreateOrderResponse {
   id: number;
   totalAmount: number;
   status: string;
+}
+
+export type MockPaymentMethod = "WALLET" | "CARD";
+
+export interface MockCardDetails {
+  number: string;
+  expiry: string;
+  cvv: string;
+}
+
+export interface MockPaymentResponse {
+  paymentId: number;
+  orderId: number;
+  method: MockPaymentMethod;
+  amount: number;
+  paymentStatus: "SUCCESS" | "FAILED" | string;
+  orderStatus: string;
+  errorCode: string | null;
+  message: string;
+  cardLast4?: string;
+  walletBalance?: number;
 }
 
 export interface VnpayPaymentResponse {
@@ -48,7 +70,11 @@ async function request<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.message || "Không thể xử lý yêu cầu.");
+    throw new Error(
+      Array.isArray(data?.message)
+        ? data.message.join(", ")
+        : data?.message || "Không thể xử lý yêu cầu.",
+    );
   }
 
   return data as T;
@@ -69,6 +95,26 @@ export function getOrderDetail(id: number) {
   return request(`/orders/${id}`);
 }
 
+export function createMockPayment(
+  orderId: number,
+  method: MockPaymentMethod,
+  idempotencyKey: string,
+  card?: MockCardDetails,
+) {
+  return request<MockPaymentResponse>("/payments", {
+    method: "POST",
+    headers: {
+      "Idempotency-Key": idempotencyKey,
+    },
+    body: JSON.stringify({
+      orderId,
+      method,
+      ...(method === "CARD" ? { card } : {}),
+    }),
+  });
+}
+
+// Giữ lại hàm VNPay để không ảnh hưởng các phần code cũ
 export function createVnpayPayment(
   orderId: number,
   idempotencyKey: string,

@@ -75,7 +75,7 @@ export default function Header({ onOpenCart }: HeaderProps) {
             Về BrewLite
           </a>
           <a
-            href="#order-history"
+            href="/orders"
             className="px-4 py-1.5 rounded-full text-xs font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60 transition"
           >
             Lịch sử đơn hàng
