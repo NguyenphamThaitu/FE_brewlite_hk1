@@ -15,8 +15,10 @@ của ADR đã `Accepted`; khi đổi quyết định, tạo ADR mới và đán
 | [006](006-inventory-transaction-row-locking.md) | Tồn kho theo nguyên liệu, transaction + khóa dòng | Accepted | Văn Trường |
 | [007](007-ci-cd-github-actions.md) | CI/CD bằng GitHub Actions, image tag theo commit SHA | CI: Accepted · CD: Proposed | Văn Trường |
 | [008](008-simulated-wallet-card-payment.md) | Thanh toán Ví/Thẻ mô phỏng, `Idempotency-Key`, trạng thái `PAYMENT_FAILED` | Accepted (PR #16) | Văn Trường |
+| [009](009-web-mobile-first-without-pwa.md) | Frontend web Next.js mobile-first, không làm PWA | Accepted (chờ lưu xác nhận của giảng viên) | Văn Trường |
+| [010](010-config-health-logging.md) | Cấu hình qua biến môi trường, `GET /health` kiểm tra DB, log ra stdout | Accepted | Văn Trường |
 
-Các ADR mô tả quyết định **đã hiện thực trong code**: ADR-001 → 007 ở `main`, ADR-008 ở PR #16. Riêng phần CD của ADR-007 là đề xuất,
+Các ADR mô tả quyết định **đã hiện thực trong code** (ADR-001 → 010). Riêng phần CD của ADR-007 là đề xuất,
 chờ Thái Tú dựng pipeline. ADR-002 do Thái Tú viết (đã merge ở PR #8).
 
 ## Mẫu ADR
