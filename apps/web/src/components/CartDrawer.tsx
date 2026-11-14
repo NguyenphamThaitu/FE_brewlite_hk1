@@ -10,7 +10,7 @@ interface CartDrawerProps {
   onCheckout?: () => void;
 }
 
-export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
+export default function CartDrawer({ isOpen, onClose, onCheckout }: CartDrawerProps) {
   const items = useSyncExternalStore(
     subscribeCart,
     getStoredCart,
@@ -174,8 +174,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 </button>
                 <button
                   type="button"
+                  data-testid="cart-checkout-button"
                   onClick={() => {
-                    alert("Tính năng Đặt hàng (FR-05 & Checkout) sẽ được kích hoạt tại Task 2 / Sprint 2!");
+                    if (onCheckout) {
+                      onCheckout();
+                    }
                   }}
                   className="flex-1 py-3 px-4 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-bold shadow-md shadow-orange-950/15 flex items-center justify-center gap-2 transition active:scale-95"
                 >

@@ -6,6 +6,8 @@ import MenuFilter from "@/components/MenuFilter";
 import ProductCard from "@/components/ProductCard";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import CartDrawer from "@/components/CartDrawer";
+import OrderConfirmationModal from "@/components/OrderConfirmationModal";
+import { getStoredCart } from "@/utils/cart";
 import { fetchProducts } from "@/services/products";
 import { Product } from "@/types/product";
 import { MOCK_PRODUCTS } from "@/data/mock-products";
@@ -31,6 +33,7 @@ export default function MenuPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -544,6 +547,18 @@ export default function MenuPage() {
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
+        onCheckout={() => {
+          setIsCartOpen(false);
+          setIsOrderModalOpen(true);
+        }}
+      />
+
+      {/* Order Confirmation Modal (FR-19, FR-29) */}
+      <OrderConfirmationModal
+        isOpen={isOrderModalOpen}
+        onClose={() => setIsOrderModalOpen(false)}
+        items={getStoredCart()}
+        totalAmount={getStoredCart().reduce((sum, item) => sum + item.totalPrice, 0)}
       />
 
       {/* Toast Notification */}
