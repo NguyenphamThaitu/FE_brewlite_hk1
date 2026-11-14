@@ -8,6 +8,7 @@ import ProductDetailModal from "@/components/ProductDetailModal";
 import CartDrawer from "@/components/CartDrawer";
 import { fetchProducts } from "@/services/products";
 import { Product } from "@/types/product";
+import { MOCK_PRODUCTS } from "@/data/mock-products";
 import {
   Coffee,
   Sparkles,
@@ -381,7 +382,7 @@ export default function MenuPage() {
                 {error}
               </p>
             </div>
-            <div className="pt-1">
+            <div className="pt-1 flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={handleRetry}
@@ -389,6 +390,18 @@ export default function MenuPage() {
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Thử lại</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProducts(MOCK_PRODUCTS);
+                  setError(null);
+                  setIsLoading(false);
+                }}
+                className="inline-flex items-center gap-2 px-7 py-3 min-h-[44px] rounded-full bg-white border border-[#E06D20] text-[#E06D20] hover:bg-[#FAF4ED] text-xs sm:text-sm font-extrabold transition active:scale-95 shadow-2xs"
+              >
+                <Coffee className="w-4 h-4" />
+                <span>Xem thực đơn mẫu (Demo)</span>
               </button>
             </div>
           </div>

@@ -226,3 +226,4 @@ describe("Cart Utility (FR-10, FR-11, FR-12, FR-13)", () => {
     expect(getStoredCart()).toHaveLength(0);
   });
 });
+

@@ -122,3 +122,4 @@ describe("CartDrawer Component (FR-11, FR-12, FR-13)", () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 });
+
