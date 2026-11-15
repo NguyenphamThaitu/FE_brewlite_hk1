@@ -9,6 +9,14 @@ export const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   [OrderStatus.READY]: OrderStatus.COMPLETED,
 };
 
+/** Trạng thái nhân viên quầy được xem: đơn đã thanh toán trở đi (FR-33) */
+export const STAFF_VISIBLE: OrderStatus[] = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED];
+
+/** GET /staff/orders?status=… – bỏ trống thì trả mọi đơn đã thanh toán */
+export class StaffOrdersQueryDto {
+  @IsOptional() @IsIn(STAFF_VISIBLE, { message: `status phải là một trong: ${STAFF_VISIBLE.join(', ')}` }) status?: OrderStatus;
+}
+
 export class UpdateStatusDto {
   @IsIn([OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED], { message: 'Trạng thái không hợp lệ' })
   status: OrderStatus;

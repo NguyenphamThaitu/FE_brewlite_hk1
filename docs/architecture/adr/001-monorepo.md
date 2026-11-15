@@ -14,12 +14,12 @@ người cùng sửa frontend, backend và tài liệu trong cùng Sprint.
 
 Dùng một repository duy nhất (monorepo):
 
-- `apps/web`: Next.js (TypeScript), mobile-first/PWA.
+- `apps/web`: Next.js (TypeScript), mobile-first. Không làm PWA, xem [ADR-009](009-web-mobile-first-without-pwa.md).
 - `apps/api`: NestJS (TypeScript), Prisma, PostgreSQL.
 - `docs/`: yêu cầu, sơ đồ, kiến trúc, ma trận truy vết, hướng dẫn deploy.
 - `tests/`: integration và end-to-end test chạy trên cả hệ thống.
 - Mỗi app có `package.json`, `Dockerfile` riêng; `docker-compose.yml` ở gốc chạy `db`, `api`, `web`.
-- CI chạy job riêng cho từng app (hiện có job `api`; job `web` cần thêm khi `apps/web` được merge).
+- CI chạy job riêng cho từng app: job `api` (PR #4) và job `web` (PR #21).
 
 ## Hệ quả
 

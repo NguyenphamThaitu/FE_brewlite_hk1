@@ -4,7 +4,8 @@ import { AuthUser } from '../common/current-user';
 import { DrinkLine, findShortages, requiredIngredients } from '../common/inventory';
 import { itemsTotal, lineTotal, PricedLine, unitPrice } from '../common/pricing';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrderDto, NEXT_STATUS } from './orders.dto';
+import { changeOrderStatus, StatusChangeReason } from './order-status';
+import { CreateOrderDto, NEXT_STATUS, STAFF_VISIBLE } from './orders.dto';
 
 const HIDE_INTERNAL = { ingredientUsage: true } as const;
 
@@ -86,6 +87,7 @@ export class OrdersService {
           totalAmount: itemsTotal(priced),
           ingredientUsage: Object.fromEntries([...need].map(([k, v]) => [String(k), v])),
           items: { create: itemsData },
+          statusHistory: { create: { toStatus: OrderStatus.PENDING_PAYMENT, changedById: userId, reason: 'ORDER_CREATED' } },
         },
       });
       return order.id;
@@ -95,11 +97,17 @@ export class OrdersService {
 
   /**
    * Hủy đơn chưa thanh toán xong (PENDING_PAYMENT hoặc PAYMENT_FAILED) → CANCELLED và hoàn kho.
-   * Chỉ chạy một lần nhờ UPDATE có điều kiện.
+   * Chỉ chạy một lần nhờ khóa dòng Order và kiểm tra trạng thái trước khi đổi.
+   * changedById = null khi hệ thống tự hủy đơn quá hạn (FR-22).
    */
-  async cancelPending(tx: Prisma.TransactionClient, orderId: number): Promise<boolean> {
-    const res = await tx.order.updateMany({ where: { id: orderId, status: { in: UNPAID } }, data: { status: OrderStatus.CANCELLED } });
-    if (!res.count) return false;
+  async cancelPending(
+    tx: Prisma.TransactionClient,
+    orderId: number,
+    changedById: number | null,
+    reason: Extract<StatusChangeReason, 'CUSTOMER_CANCEL' | 'AUTO_EXPIRED'>,
+  ): Promise<boolean> {
+    const prev = await changeOrderStatus(tx, orderId, UNPAID, OrderStatus.CANCELLED, changedById, reason);
+    if (!prev) return false;
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
     const usage = order.ingredientUsage as Record<string, number>;
     for (const ingId of Object.keys(usage).map(Number).sort((a, b) => a - b))
@@ -109,7 +117,7 @@ export class OrdersService {
 
   async cancelMine(user: AuthUser, orderId: number) {
     await this.findOneFor(user, orderId);
-    const ok = await this.prisma.$transaction((tx) => this.cancelPending(tx, orderId));
+    const ok = await this.prisma.$transaction((tx) => this.cancelPending(tx, orderId, user.id, 'CUSTOMER_CANCEL'));
     if (!ok) throw new ConflictException('Chỉ hủy được đơn chưa thanh toán');
     return this.findOneFor(user, orderId);
   }
@@ -138,19 +146,49 @@ export class OrdersService {
     return this.prisma.order.findMany({ where, include: { items: true }, omit: HIDE_INTERNAL, orderBy: { id: 'desc' } });
   }
 
+  /** Đơn đã thanh toán cho quầy (FR-33): mặc định mọi trạng thái từ PAID trở đi, đơn đến trước xếp trước. */
+  listForStaff(status?: OrderStatus) {
+    return this.prisma.order.findMany({
+      where: { status: status ?? { in: STAFF_VISIBLE } },
+      include: { items: true, user: { select: { fullName: true } } },
+      omit: HIDE_INTERNAL,
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+  }
+
   async findOneFor(user: AuthUser, id: number) {
-    const o = await this.prisma.order.findUnique({ where: { id }, include: { items: true, payments: true }, omit: HIDE_INTERNAL });
+    const isStaff = user.role === Role.STAFF;
+    const o = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        items: true,
+        payments: true,
+        // Lịch sử trạng thái (FR-34). Tên người đổi chỉ trả cho nhân viên.
+        statusHistory: {
+          orderBy: { id: 'asc' },
+          select: {
+            fromStatus: true,
+            toStatus: true,
+            reason: true,
+            changedAt: true,
+            changedBy: isStaff ? { select: { id: true, fullName: true, role: true } } : false,
+          },
+        },
+      },
+      omit: HIDE_INTERNAL,
+    });
     if (!o) throw new NotFoundException('Không tìm thấy đơn hàng');
-    if (user.role !== Role.STAFF && o.userId !== user.id) throw new ForbiddenException('Đây không phải đơn hàng của bạn');
+    if (!isStaff && o.userId !== user.id) throw new ForbiddenException('Đây không phải đơn hàng của bạn');
     return o;
   }
 
-  async updateStatus(id: number, next: OrderStatus) {
+  /** Nhân viên đẩy đơn đi tiếp đúng thứ tự PAID → PREPARING → READY → COMPLETED, ghi lại ai đổi và lúc nào (FR-34). */
+  async updateStatus(staff: AuthUser, id: number, next: OrderStatus) {
     const o = await this.prisma.order.findUnique({ where: { id } });
     if (!o) throw new NotFoundException('Không tìm thấy đơn hàng');
     if (NEXT_STATUS[o.status] !== next) throw new BadRequestException(`Không thể chuyển đơn từ ${o.status} sang ${next}`);
-    const res = await this.prisma.order.updateMany({ where: { id, status: o.status }, data: { status: next } });
-    if (!res.count) throw new ConflictException('Đơn vừa được cập nhật bởi người khác, vui lòng tải lại');
+    const prev = await this.prisma.$transaction((tx) => changeOrderStatus(tx, id, [o.status], next, staff.id, 'STAFF_UPDATE'));
+    if (!prev) throw new ConflictException('Đơn vừa được cập nhật bởi người khác, vui lòng tải lại');
     return this.prisma.order.findUniqueOrThrow({ where: { id }, include: { items: true }, omit: HIDE_INTERNAL });
   }
 }

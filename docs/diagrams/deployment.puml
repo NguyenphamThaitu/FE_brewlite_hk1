@@ -1,0 +1,83 @@
+@startuml deployment
+title Deployment diagram - BrewLite (local, CI/CD, production)
+skinparam shadowing false
+skinparam defaultFontName DejaVu Sans
+skinparam nodeFontSize 12
+skinparam artifactFontSize 11
+skinparam rectangleBorderColor #555555
+skinparam ArrowFontSize 10
+
+actor "Người dùng" as USER
+
+node "Thiết bị người dùng" <<device>> as DEVICE {
+  artifact "Trình duyệt web\n(Chrome, Edge, Firefox)" as BROWSER
+}
+
+rectangle "RANH GIỚI 1: MÁY LẬP TRÌNH (LOCAL)" as LOCAL {
+  node "Docker Desktop\n(docker-compose.yml)" <<execution environment>> as COMPOSE {
+    artifact "web\nNext.js, cổng 3000\n(profile web)" as L_WEB
+    artifact "api\nNestJS, cổng 3001" as L_API
+    database "db\nPostgreSQL 16\nvolume pgdata" as L_DB
+  }
+}
+
+rectangle "RANH GIỚI 2: CI/CD (GITHUB)" as CICD {
+  node "GitHub repository\n(nhánh main, tag v*)" as REPO {
+    artifact "apps/web\napps/api" as SRC
+  }
+  node "GitHub Actions" <<execution environment>> as GHA {
+    artifact "ci.yml\ninstall, lint, test, build" as CI
+    artifact "cd.yml\nquality, build-push, deploy,\nsmoke test, rollback" as CD
+  }
+  node "GitHub Secrets và Variables" as SECRETS {
+    artifact "RENDER_API_DEPLOY_HOOK\nRENDER_WEB_DEPLOY_HOOK\nRENDER_API_KEY" as S1
+    artifact "NEXT_PUBLIC_API_URL\nPRODUCTION_WEB_URL\nCD_DEPLOY_ENABLED" as V1
+  }
+  node "GHCR (container registry)\nghcr.io" as GHCR {
+    artifact "brewlite-api\ntag sha-xxxxxxx, latest,\nstable, vX.Y.Z" as IMG_API
+    artifact "brewlite-web\ntag sha-xxxxxxx, latest,\nstable, vX.Y.Z" as IMG_WEB
+  }
+}
+
+rectangle "RANH GIỚI 3: PRODUCTION (RENDER, Singapore)" as PROD {
+  node "Render Web Service\nbrewlite-web-image" <<Docker container>> as R_WEB {
+    artifact "Next.js standalone\ncổng PORT do Render cấp\nhealth check: /" as P_WEB
+  }
+  node "Render Web Service\nbrewlite-api-image" <<Docker container>> as R_API {
+    artifact "NestJS API\ncổng 3001 (PORT do Render cấp)\nhealth check: /health\nprisma migrate deploy khi khởi động" as P_API
+    artifact "Biến môi trường (secret trên Render):\nDATABASE_URL, JWT_SECRET,\nSTAFF_PASSWORD, CORS_ORIGIN,\nAUTO_SEED, NODE_ENV" as ENV
+  }
+  node "Render Managed PostgreSQL\nbrewlite-db" <<database server>> as R_DB {
+    database "PostgreSQL\n(chỉ có địa chỉ nội bộ)" as P_DB
+    artifact "Lưu trữ bền vững\ndo Render quản lý" as STORAGE
+  }
+  artifact "Render Logs\n(log web, API, deploy)" as LOGS
+}
+
+USER --> BROWSER
+BROWSER ..> L_WEB : "HTTP localhost:3000"
+BROWSER ..> L_API : "HTTP localhost:3001"
+L_API ..> L_DB : "PostgreSQL 5432\n(mạng Docker nội bộ)"
+
+SRC --> CI : "pull request"
+SRC --> CD : "push main hoặc tag v*"
+CD --> IMG_API : "build và push\n(GITHUB_TOKEN)"
+CD --> IMG_WEB : "build và push\n(NEXT_PUBLIC_API_URL\nnhúng lúc build)"
+S1 ..> CD : "đọc secret"
+V1 ..> CD : "đọc biến"
+
+CD --> R_API : "HTTPS deploy hook\n+ imgURL=sha-xxxxxxx"
+CD --> R_WEB : "HTTPS deploy hook\n+ imgURL=sha-xxxxxxx"
+IMG_API --> R_API : "pull image"
+IMG_WEB --> R_WEB : "pull image"
+CD ..> P_API : "smoke test\nGET /health, /products"
+CD ..> P_WEB : "smoke test\nGET /"
+
+BROWSER --> P_WEB : "HTTPS 443\ntải giao diện"
+BROWSER --> P_API : "HTTPS 443, REST/JSON\n(CORS_ORIGIN = địa chỉ web)"
+P_API --> P_DB : "kết nối nội bộ\n(Internal Database URL,\ncùng vùng Singapore)"
+P_DB --> STORAGE
+P_API ..> LOGS
+P_WEB ..> LOGS
+ENV ..> P_API
+@enduml

@@ -2,15 +2,14 @@ import { Product, SizeOption, Topping } from "@/types/product";
 
 export const SIZE_OPTIONS: SizeOption[] = [
   { size: "S", name: "Nhỏ (S)", extraPrice: 0 },
-  { size: "M", name: "Vừa (M)", extraPrice: 5000 },
+  { size: "M", name: "Vừa (M)", extraPrice: 6000 },
   { size: "L", name: "Lớn (L)", extraPrice: 10000 },
 ];
 
 export const AVAILABLE_TOPPINGS: Topping[] = [
-  { id: "top-1", name: "Trân châu trắng", price: 8000 },
-  { id: "top-2", name: "Thạch cà phê giòn", price: 8000 },
-  { id: "top-3", name: "Kem Cheese Macchiato", price: 10000 },
-  { id: "top-4", name: "Thêm 1 Shot Espresso", price: 12000 },
+  { id: "top-1", name: "Trân châu đen", price: 7000 },
+  { id: "top-2", name: "Thạch dừa", price: 6000 },
+  { id: "top-3", name: "Kem cheese", price: 10000 },
 ];
 
 export const CATEGORIES = [
@@ -125,6 +124,17 @@ export const MOCK_PRODUCTS: Product[] = [
     basePrice: 35000,
     stock: 0, // Out of stock example to test FR-01 condition
     imageUrl: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "prod-11",
+    name: "Matcha Latte Nhật Bản",
+    categoryId: "tea",
+    categoryName: "Trà Trái Cây & Macchiato",
+    description: "Bột Matcha Uji thượng hạng từ Nhật Bản đánh tan cùng sữa tươi thanh trùng béo ngậy, ngọt dịu thanh mát.",
+    basePrice: 45000,
+    stock: 20,
+    imageUrl: "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=600&auto=format&fit=crop&q=80",
+    isPopular: true,
   },
 ];
 
