@@ -1,11 +1,14 @@
-
+﻿
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { CartItem, Topping } from "@/types/product";
 import { clearCart } from "@/utils/cart";
-import { getStoredUser } from "@/utils/auth";
+import { clearSession, getStoredUser, isSessionActive, subscribeAuth } from "@/utils/auth";
 import {
+Lock,
+CheckCircle2,
   X,
   ShoppingBag,
   ArrowRight,
@@ -46,72 +49,140 @@ export default function OrderConfirmationModal({
   items,
   totalAmount,
 }: OrderConfirmationModalProps) {
-  const [customerName, setCustomerName] = useState(
-    () => getStoredUser()?.fullName || "Khách hàng",
-  );
-  const [pickupNote, setPickupNote] = useState("Uống tại bàn");
-  const [paymentMethod, setPaymentMethod] =
-    useState<MockPaymentMethod>("WALLET");
+const [isSuccess, setIsSuccess] = useState<boolean>(false);
+const [orderCode, setOrderCode] = useState<string>("");
+
+const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
+
+// T├¬n ng╞░ß╗¥i nhß║¡n mß║╖c ─æß╗ïnh l├á t├¬n t├ái khoß║ún ─æang ─æ─âng nhß║¡p.
+const [nameInput, setNameInput] = useState<string | null>(null);
+const customerName = nameInput ?? user?.fullName ?? "Kh├ích h├áng";
+
+const [pickupNote, setPickupNote] = useState<string>("Uß╗æng tß║íi b├án");
+const [paymentMethod, setPaymentMethod] =
+  useState<MockPaymentMethod>("WALLET");
+
+const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
 
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
+// ─Éß║╖t h├áng bß║»t buß╗Öc phß║úi ─æ─âng nhß║¡p v├á phi├¬n c├▓n hiß╗çu lß╗▒c.
+if (!user || !isSessionActive()) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="order-login-title"
+      data-testid="order-login-required"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+    >
+      <div
+        className="fixed inset-0 bg-[#2B1B12]/60 backdrop-blur-xs"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-sm bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE0D2] p-8 text-center space-y-5 z-10">
+        <div className="w-14 h-14 rounded-full bg-[#FFF4EB] text-[#E06D20] mx-auto flex items-center justify-center">
+          <Lock className="w-7 h-7" />
+        </div>
 
-  const handleConfirmOrder = async () => {
-    if (items.length === 0) {
-      setErrorMessage("Giỏ hàng đang trống.");
+        <div className="space-y-1.5">
+          <h2 id="order-login-title" className="text-lg font-black text-[#2B1B12]">
+            Vui l├▓ng ─æ─âng nhß║¡p ─æß╗â ─æß║╖t h├áng
+          </h2>
+          <p className="text-xs text-[#786354]">
+            Giß╗Å h├áng cß╗ºa bß║ín vß║½n ─æ╞░ß╗úc giß╗» nguy├¬n sau khi ─æ─âng nhß║¡p.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <Link
+            href="/login?next=%2F%23cart&reason=checkout"
+            className="py-3 px-6 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-extrabold text-sm shadow-md shadow-orange-950/20 transition active:scale-95"
+          >
+            ─É─âng nhß║¡p
+          </Link>
+
+          <Link
+            href="/register?next=%2F%23cart&reason=checkout"
+            className="py-3 px-6 rounded-full border border-[#D8CDC0] text-[#4A3528] hover:bg-[#FAF4ED] text-sm font-bold transition"
+          >
+            Tß║ío t├ái khoß║ún mß╗¢i
+          </Link>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs font-bold text-[#786354] hover:text-[#E06D20] transition py-1.5"
+          >
+            ─Éß╗â sau
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(price);
+};
+
+const handleConfirmOrder = async () => {
+  // Kiß╗âm tra phi├¬n ─æ─âng nhß║¡p c├▓n hiß╗çu lß╗▒c tr╞░ß╗¢c khi ─æß║╖t h├áng.
+  if (!isSessionActive()) {
+    clearSession();
+    return;
+  }
+
+  if (items.length === 0) {
+    setErrorMessage("Giß╗Å h├áng ─æang trß╗æng.");
+    return;
+  }
+
+  if (successMessage) return;
+
+  if (paymentMethod === "CARD" && !/^\d{16}$/.test(cardNumber)) {
+    setErrorMessage("Sß╗æ thß║╗ phß║úi gß╗ôm ─æ├║ng 16 chß╗» sß╗æ.");
+    return;
+  }
+
+  if (
+    paymentMethod === "CARD" &&
+    !/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardExpiry)
+  ) {
+    setErrorMessage("Hß║ín thß║╗ phß║úi c├│ dß║íng MM/YY.");
+    return;
+  }
+
+  if (paymentMethod === "CARD") {
+    const [month, year] = cardExpiry.split("/").map(Number);
+    const expiryDate = new Date(2000 + year, month, 1);
+    const currentMonth = new Date();
+    currentMonth.setDate(1);
+    currentMonth.setHours(0, 0, 0, 0);
+
+    if (expiryDate <= currentMonth) {
+      setErrorMessage("Thß║╗ ─æ├ú hß║┐t hß║ín.");
       return;
     }
+  }
 
-    if (successMessage) return;
+  if (paymentMethod === "CARD" && !/^\d{3}$/.test(cardCvv)) {
+    setErrorMessage("CVV phß║úi gß╗ôm ─æ├║ng 3 chß╗» sß╗æ.");
+    return;
+  }
 
-    if (
-      paymentMethod === "CARD" &&
-      !/^\d{16}$/.test(cardNumber)
-    ) {
-      setErrorMessage("Số thẻ phải gồm đúng 16 chữ số.");
-      return;
-    }
-
-    if (
-      paymentMethod === "CARD" &&
-      !/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardExpiry)
-    ) {
-      setErrorMessage("Hạn thẻ phải có dạng MM/YY.");
-      return;
-    }
-
-    if (paymentMethod === "CARD") {
-      const [month, year] = cardExpiry.split("/").map(Number);
-      const expiryDate = new Date(2000 + year, month, 1);
-      const currentMonth = new Date();
-      currentMonth.setDate(1);
-      currentMonth.setHours(0, 0, 0, 0);
-
-      if (expiryDate <= currentMonth) {
-        setErrorMessage("Thẻ đã hết hạn.");
-        return;
-      }
-    }
-    if (
-      paymentMethod === "CARD" &&
-      !/^\d{3}$/.test(cardCvv)
-    ) {
-      setErrorMessage("CVV phải gồm đúng 3 chữ số.");
-      return;
-    }
-
+  // Giß╗» nguy├¬n to├án bß╗Ö phß║ºn code c├▓n lß║íi cß╗ºa handleConfirmOrder
+  // tß╗½ sau ─æoß║ín kiß╗âm tra CVV.
     setIsSubmitting(true);
     setErrorMessage("");
 
@@ -138,7 +209,7 @@ const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
           )
         ) {
           throw new Error(
-            `Thông tin món "${item.name}" không hợp lệ. Vui lòng chọn lại món.`,
+            `Th├┤ng tin m├│n "${item.name}" kh├┤ng hß╗úp lß╗ç. Vui l├▓ng chß╗ìn lß║íi m├│n.`,
           );
         }
 
@@ -211,8 +282,8 @@ const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
         setSuccessOrderId(payment.orderId);
 setSuccessMessage(payment.message);
       } else {
-        // Thanh toán thất bại vẫn lưu đơn để khách có thể thử lại.
-        // Tạo key mới để backend không trả lại kết quả thất bại cũ.
+        // Thanh to├ín thß║Ñt bß║íi vß║½n l╞░u ─æ╞ín ─æß╗â kh├ích c├│ thß╗â thß╗¡ lß║íi.
+        // Tß║ío key mß╗¢i ─æß╗â backend kh├┤ng trß║ú lß║íi kß║┐t quß║ú thß║Ñt bß║íi c┼⌐.
         const retryPayment: PendingPayment = {
           ...pending,
           idempotencyKey: createIdempotencyKey(),
@@ -224,14 +295,14 @@ setSuccessMessage(payment.message);
         );
 
         setErrorMessage(
-          payment.message || "Thanh toán thất bại. Vui lòng thử lại.",
+          payment.message || "Thanh to├ín thß║Ñt bß║íi. Vui l├▓ng thß╗¡ lß║íi.",
         );
       }
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.",
+          : "C├│ lß╗ùi xß║úy ra khi ─æß║╖t h├áng. Vui l├▓ng thß╗¡ lß║íi.",
       );
     } finally {
       setIsSubmitting(false);
@@ -266,10 +337,10 @@ setSuccessMessage(payment.message);
                 id="order-modal-title"
                 className="text-lg font-black text-[#2B1B12] uppercase tracking-tight"
               >
-                Xác nhận đơn hàng
+                X├íc nhß║¡n ─æ╞ín h├áng
               </h2>
               <p className="text-xs text-[#786354]">
-                Kiểm tra món trước khi thanh toán
+                Kiß╗âm tra m├│n tr╞░ß╗¢c khi thanh to├ín
               </p>
             </div>
           </div>
@@ -278,7 +349,7 @@ setSuccessMessage(payment.message);
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Đóng popup xác nhận"
+            aria-label="─É├│ng popup x├íc nhß║¡n"
             className="w-8 h-8 rounded-full flex items-center justify-center text-[#786354] hover:bg-[#FAF4ED] transition disabled:opacity-50"
           >
             <X className="w-4 h-4" />
@@ -288,7 +359,7 @@ setSuccessMessage(payment.message);
         <div className="p-6 overflow-y-auto space-y-5 text-sm">
           <div>
             <h3 className="text-xs font-bold text-[#786354] uppercase tracking-wider mb-2.5">
-              Món trong đơn ({items.reduce((s, i) => s + i.qty, 0)} món)
+              M├│n trong ─æ╞ín ({items.reduce((s, i) => s + i.qty, 0)} m├│n)
             </h3>
 
             <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
@@ -307,15 +378,15 @@ setSuccessMessage(payment.message);
                       </span>
                     </div>
 
-                    {item.toppings && item.toppings.length > 0 && (
-                      <p className="text-[11px] text-[#786354] truncate mt-0.5">
-                        + {item.toppings.map((t) => t.name).join(", ")}
-                      </p>
-                    )}
+{item.toppings && item.toppings.length > 0 && (
+  <p className="text-[11px] text-[#786354] truncate mt-0.5">
+    + {item.toppings.map((t) => t.name).join(", ")}
+  </p>
+)}
 
                     {item.note && (
                       <p className="text-[11px] text-[#A66336] italic truncate">
-                        Ghi chú: {item.note}
+                        Ghi ch├║: {item.note}
                       </p>
                     )}
                   </div>
@@ -339,15 +410,15 @@ setSuccessMessage(payment.message);
                 htmlFor="order-customer-name"
                 className="block text-xs font-bold text-[#4A3528] mb-1"
               >
-                Tên người nhận món
+                T├¬n ng╞░ß╗¥i nhß║¡n m├│n
               </label>
               <input
                 id="order-customer-name"
                 data-testid="order-customer-name"
                 type="text"
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Nhập tên của bạn"
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Nhß║¡p t├¬n cß╗ºa bß║ín"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#D8CDC0] bg-white text-xs font-medium text-[#2B1B12]"
               />
             </div>
@@ -357,7 +428,7 @@ setSuccessMessage(payment.message);
                 htmlFor="order-pickup-note"
                 className="block text-xs font-bold text-[#4A3528] mb-1"
               >
-                Hình thức nhận món / Vị trí bàn
+                H├¼nh thß╗⌐c nhß║¡n m├│n / Vß╗ï tr├¡ b├án
               </label>
               <input
                 id="order-pickup-note"
@@ -365,7 +436,7 @@ setSuccessMessage(payment.message);
                 type="text"
                 value={pickupNote}
                 onChange={(e) => setPickupNote(e.target.value)}
-                placeholder="Ví dụ: Bàn 04, Mang về..."
+                placeholder="V├¡ dß╗Ñ: B├án 04, Mang vß╗ü..."
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#D8CDC0] bg-white text-xs font-medium text-[#2B1B12]"
               />
             </div>
@@ -373,7 +444,7 @@ setSuccessMessage(payment.message);
 
           <div className="pt-3 border-t border-[#EAE0D2] space-y-3">
             <h3 className="text-xs font-bold text-[#786354] uppercase tracking-wider">
-              Phương thức thanh toán
+              Ph╞░╞íng thß╗⌐c thanh to├ín
             </h3>
 
             <div className="grid grid-cols-2 gap-3">
@@ -388,7 +459,7 @@ setSuccessMessage(payment.message);
                 }`}
               >
                 <Wallet className="w-4 h-4" />
-                Ví điện tử
+                V├¡ ─æiß╗çn tß╗¡
               </button>
 
               <button
@@ -402,14 +473,14 @@ setSuccessMessage(payment.message);
                 }`}
               >
                 <CreditCard className="w-4 h-4" />
-                Thẻ ngân hàng
+                Thß║╗ ng├ón h├áng
               </button>
             </div>
 
             {paymentMethod === "WALLET" && (
               <p className="text-[11px] text-[#786354]">
-                Thanh toán trực tiếp bằng số dư ví của tài khoản.
-                Số dư mặc định của tài khoản mới là 200.000đ.
+                Thanh to├ín trß╗▒c tiß║┐p bß║▒ng sß╗æ d╞░ v├¡ cß╗ºa t├ái khoß║ún.
+                Sß╗æ d╞░ mß║╖c ─æß╗ïnh cß╗ºa t├ái khoß║ún mß╗¢i l├á 200.000─æ.
               </p>
             )}
 
@@ -420,7 +491,7 @@ setSuccessMessage(payment.message);
                     htmlFor="payment-card-number"
                     className="block text-xs font-bold text-[#4A3528] mb-1"
                   >
-                    Số thẻ (16 chữ số)
+                    Sß╗æ thß║╗ (16 chß╗» sß╗æ)
                   </label>
                   <input
                     id="payment-card-number"
@@ -443,7 +514,7 @@ setSuccessMessage(payment.message);
                       htmlFor="payment-card-expiry"
                       className="block text-xs font-bold text-[#4A3528] mb-1"
                     >
-                      Hạn thẻ (MM/YY)
+                      Hß║ín thß║╗ (MM/YY)
                     </label>
                     <input
                       id="payment-card-expiry"
@@ -488,10 +559,10 @@ setSuccessMessage(payment.message);
                 </div>
 
                 <div className="text-[10px] text-[#786354] space-y-1">
-                  <p>Thẻ test thành công: 4111111111111111</p>
-                  <p>Thẻ test bị từ chối: 4000000000000002</p>
-                  <p>Thẻ test không đủ tiền: 4000000000009995</p>
-                  <p>Hạn thẻ phải còn hiệu lực. CVV có thể nhập 3 chữ số bất kỳ.</p>
+                  <p>Thß║╗ test th├ánh c├┤ng: 4111111111111111</p>
+                  <p>Thß║╗ test bß╗ï tß╗½ chß╗æi: 4000000000000002</p>
+                  <p>Thß║╗ test kh├┤ng ─æß╗º tiß╗ün: 4000000000009995</p>
+                  <p>Hß║ín thß║╗ phß║úi c├▓n hiß╗çu lß╗▒c. CVV c├│ thß╗â nhß║¡p 3 chß╗» sß╗æ bß║Ñt kß╗│.</p>
                 </div>
               </div>
             )}
@@ -500,10 +571,10 @@ setSuccessMessage(payment.message);
           <div className="p-3.5 rounded-2xl bg-[#FFF8F2] border border-[#F4DEC9] flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-[#786354]">
-                Tổng thanh toán (VND)
+                Tß╗òng thanh to├ín (VND)
               </p>
               <p className="text-[11px] text-[#A66336]">
-                Thanh toán mô phỏng
+                Thanh to├ín m├┤ phß╗Ång
               </p>
             </div>
             <span
@@ -532,7 +603,7 @@ setSuccessMessage(payment.message);
       data-testid="order-success-title"
       className="text-lg font-black text-green-800"
     >
-      Đặt hàng thành công!
+      ─Éß║╖t h├áng th├ánh c├┤ng!
     </h3>
 
     <p className="text-sm text-green-700">
@@ -543,18 +614,18 @@ setSuccessMessage(payment.message);
       data-testid="order-code"
       className="text-sm font-bold text-[#2B1B12]"
     >
-      Mã đơn hàng: #BL-{successOrderId}
+      M├ú ─æ╞ín h├áng: #BL-{successOrderId}
     </p>
 
     <p
       data-testid="order-status-badge"
       className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold"
     >
-      Đã tiếp nhận (Chờ pha chế)
+      ─É├ú tiß║┐p nhß║¡n (Chß╗¥ pha chß║┐)
     </p>
 
     <p className="text-sm text-[#4A3528]">
-      Hình thức nhận món: {pickupNote}
+      H├¼nh thß╗⌐c nhß║¡n m├│n: {pickupNote}
     </p>
   </div>
 )}
@@ -569,8 +640,8 @@ setSuccessMessage(payment.message);
             className="px-5 py-3 rounded-full border border-[#D8CDC0] text-[#4A3528] hover:bg-[#FAF4ED] text-xs font-bold transition disabled:opacity-50"
           >
             {successMessage
-  ? "Hoàn tất & Tiếp tục xem thực đơn"
-  : "Quay lại"}
+  ? "Ho├án tß║Ñt & Tiß║┐p tß╗Ñc xem thß╗▒c ─æ╞ín"
+  : "Quay lß║íi"}
           </button>
 
           {!successMessage && (
@@ -582,10 +653,10 @@ setSuccessMessage(payment.message);
               className="flex-1 py-3 px-6 rounded-full bg-[#E06D20] hover:bg-[#C95E16] disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition"
             >
               {isSubmitting ? (
-                <span>Đang xử lý đơn...</span>
+                <span>─Éang xß╗¡ l├╜ ─æ╞ín...</span>
               ) : (
                 <>
-                  <span>Xác nhận & Thanh toán</span>
+                  <span>X├íc nhß║¡n & Thanh to├ín</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

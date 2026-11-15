@@ -82,3 +82,6 @@ export const subscribeAuth = (callback: () => void): (() => void) => {
     window.removeEventListener("storage", callback);
   };
 };
+export const isSessionActive = (): boolean => {
+  return Boolean(getToken() && getStoredUser());
+};

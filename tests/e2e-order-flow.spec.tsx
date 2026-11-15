@@ -12,8 +12,8 @@ import MenuPage from "@/app/page";
 import * as productsService from "@/services/products";
 import * as ordersApi from "@/utils/orders-api";
 import { clearCart, getStoredCart } from "@/utils/cart";
+import { saveSession } from "@/utils/auth";
 import { Product } from "@/types/product";
-
 const mockSeedProducts: Product[] = [
   {
     id: 1,
@@ -76,7 +76,15 @@ describe("E2E Test: Luồng đặt món và thanh toán mô phỏng BrewLite", (
     localStorage.clear();
     sessionStorage.clear();
 
-    localStorage.setItem("brewlite_token", "test-jwt-token");
+    saveSession({
+  accessToken: "e2e-test-token",
+  user: {
+    id: 1,
+    email: "customer@brewlite.test",
+    fullName: "Nguyễn Văn A",
+    role: "CUSTOMER",
+  },
+});
 
     vi.mocked(productsService.fetchProducts).mockResolvedValue(
       mockSeedProducts
