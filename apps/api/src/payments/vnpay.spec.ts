@@ -22,4 +22,29 @@ describe('vnpay', () => {
   it('định dạng ngày giờ GMT+7', () => {
     expect(vnpDate(new Date('2026-11-10T00:30:15Z'))).toBe('20261110073015');
   });
+
+
+  it('chữ ký không phụ thuộc thứ tự thuộc tính đầu vào', () => {
+    const reordered = { vnp_TxnRef: '1001', vnp_OrderInfo: 'Thanh toan don 1', vnp_Command: 'pay', vnp_Amount: 5800000 };
+    expect(sign(reordered, secret)).toBe(sign(params, secret));
+  });
+  it('chấp nhận chữ ký viết hoa và bỏ qua vnp_SecureHashType', () => {
+    const hash = sign(params, secret).toUpperCase();
+    expect(verifySignature({ ...params, vnp_SecureHash: hash, vnp_SecureHashType: 'แบบทดสอบ' }, secret)).toBe(true);
+  });
+  it('từ chối khi thay đổi mã giao dịch sau khi ký', () => {
+    expect(verifySignature({
+      ...params,
+      vnp_TxnRef: '1002',
+      vnp_SecureHash: sign(params, secret),
+    }, secret)).toBe(false);
+  });
+  it('lọc tham số rỗng khỏi URL thanh toán', () => {
+    const url = buildPaymentUrl('https://x/pay', secret, { ...params, vnp_Extra: '' });
+    expect(url).not.toContain('vnp_Extra=');
+    expect(url).toContain('vnp_SecureHash=');
+  });
+  it('định dạng đúng thời điểm sát mốc chuyển ngày theo GMT+7', () => {
+    expect(vnpDate(new Date('2026-11-10T17:00:00Z'))).toBe('20261111000000');
+  });
 });
