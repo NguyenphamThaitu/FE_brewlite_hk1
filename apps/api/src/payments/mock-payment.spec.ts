@@ -24,4 +24,23 @@ describe('Thanh toán mô phỏng', () => {
     expect(isExpired('10/26', now)).toBe(true);
     expect(decideCard({ number: '4111111111111111', expiry: '10/26' }, now)).toMatchObject({ ok: false, code: 'CARD_EXPIRED' });
   });
+
+
+  it('ví có số dư lớn hơn số tiền cần thanh toán thì thành công', () => {
+    expect(decideWallet(100000, 58000)).toEqual({ ok: true });
+  });
+  it('ví thiếu đúng 1 đồng thì thanh toán thất bại', () => {
+    expect(decideWallet(57999, 58000)).toMatchObject({ ok: false, code: 'WALLET_INSUFFICIENT_BALANCE' });
+  });
+  it('thẻ hợp lệ vẫn dùng được trong ngày cuối cùng của tháng hết hạn', () => {
+    const lastDay = new Date(2026, 10, 30, 23, 59, 59);
+    expect(isExpired('11/26', lastDay)).toBe(false);
+  });
+  it('thẻ hết hạn từ 00:00 ngày đầu tháng kế tiếp', () => {
+    const firstDayNextMonth = new Date(2026, 11, 1, 0, 0, 0);
+    expect(isExpired('11/26', firstDayNextMonth)).toBe(true);
+  });
+  it('thẻ test thành công thứ hai được chấp nhận', () => {
+    expect(decideCard({ number: '5555555555554444', expiry: '12/30' }, now)).toEqual({ ok: true });
+  });
 });

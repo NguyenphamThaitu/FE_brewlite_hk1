@@ -1,14 +1,16 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import Link from "next/link";
 import { Coffee, ShoppingBag, User, Sparkles, Clock } from "lucide-react";
 import { getEmptyCartSnapshot, getStoredCart, subscribeCart } from "@/utils/cart";
 
 interface HeaderProps {
   onOpenCart: () => void;
+  activeTab?: "menu" | "about" | "history";
 }
 
-export default function Header({ onOpenCart }: HeaderProps) {
+export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) {
   const items = useSyncExternalStore(
     subscribeCart,
     getStoredCart,
@@ -38,7 +40,7 @@ export default function Header({ onOpenCart }: HeaderProps) {
       {/* Main Navigation Row */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
         {/* Brand Logo */}
-        <a href="#menu" className="flex items-center gap-3.5 cursor-pointer group">
+        <Link href="/" className="flex items-center gap-3.5 cursor-pointer group">
           <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#E06D20] to-[#B84D0B] flex items-center justify-center text-white shadow-md shadow-orange-950/20 group-hover:scale-105 transition-transform duration-300">
             <Coffee className="w-6 h-6 stroke-[2.2]" />
             <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#FAF6F0] p-0.5 flex items-center justify-center">
@@ -58,19 +60,27 @@ export default function Header({ onOpenCart }: HeaderProps) {
               Cà phê tươi mỗi ngày — Đặt món & Thanh toán
             </p>
           </div>
-        </a>
+        </Link>
 
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-1 bg-[#F3ECE1] p-1.5 rounded-full border border-[#E6DBC9]">
-          <a
-            href="#menu"
-            className="px-4 py-1.5 rounded-full bg-white text-[#E06D20] text-xs font-extrabold shadow-2xs transition"
+          <Link
+            href="/#menu"
+            className={`px-4 py-1.5 rounded-full text-xs transition ${
+              activeTab === "menu"
+                ? "bg-white text-[#E06D20] font-extrabold shadow-2xs"
+                : "font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60"
+            }`}
           >
             Thực đơn đồ uống
-          </a>
-          <a
-            href="#about"
-            className="px-4 py-1.5 rounded-full text-xs font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60 transition"
+          </Link>
+          <Link
+            href="/about"
+            className={`px-4 py-1.5 rounded-full text-xs transition ${
+              activeTab === "about"
+                ? "bg-white text-[#E06D20] font-extrabold shadow-2xs"
+                : "font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60"
+            }`}
           >
             Về BrewLite
           </a>
@@ -79,19 +89,19 @@ export default function Header({ onOpenCart }: HeaderProps) {
             className="px-4 py-1.5 rounded-full text-xs font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60 transition"
           >
             Lịch sử đơn hàng
-          </a>
+          </Link>
         </nav>
 
         {/* Actions */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           {/* User Profile / Login */}
-          <button
-            type="button"
+          <Link
+            href="/login"
             className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] text-xs font-bold text-[#3D291D] bg-white border border-[#DED2C3] hover:border-[#E06D20] hover:text-[#E06D20] rounded-full transition shadow-2xs active:scale-95"
           >
             <User className="w-4 h-4 text-[#786354]" />
             <span className="hidden sm:inline">Tài khoản</span>
-          </button>
+          </Link>
 
           {/* Cart Trigger */}
           <button
