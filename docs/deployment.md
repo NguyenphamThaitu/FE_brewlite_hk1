@@ -143,6 +143,10 @@ Point-in-Time Recovery và Export không dùng được ở gói này, cần nâ
 tự động** do Render cung cấp. Nếu mất dữ liệu, cấu trúc bảng và dữ liệu mẫu tạo lại được bằng migration và seed
 (mục 4), còn dữ liệu phát sinh khi chạy (tài khoản, đơn hàng) sẽ không khôi phục được.
 
+**Hạn dùng của cơ sở dữ liệu:** theo trang Info của `brewlite-db` trên Render (kiểm tra ngày 15/11/2026),
+cơ sở dữ liệu gói Free hết hạn ngày **10/12/2026** và sẽ bị xóa nếu không nâng lên gói trả phí.
+Dự án dự kiến được chấm trước ngày này nên chưa nâng gói. Sau ngày hết hạn, API sẽ không còn kết nối
+được cơ sở dữ liệu và `/health` sẽ báo lỗi, đây là hành vi đã biết, không phải lỗi pipeline.
 ## 10. Log và theo dõi
 
 - Log runtime của web, API và cơ sở dữ liệu xem trên Render Dashboard, mục Logs của từng dịch vụ.
