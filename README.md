@@ -282,7 +282,32 @@ Mẫu riêng nằm ở `apps/api/.env.example`. File này có `DATABASE_URL` tr�
 - [Tổng quan kiến trúc](docs/architecture/adr/010-architecture-overview.md)
 - [Danh sách quyết định kiến trúc (ADR)](docs/architecture/adr/README.md)
 - [Minh chứng CI](docs/ci-evidence.md)
+- [Hướng dẫn triển khai và quay lui](docs/deployment.md)
 
 ## 10. Đóng góp
 
 Vui lòng đọc `CONTRIBUTING.md` trước khi tạo nhánh hoặc pull request. Nhóm sử dụng GitHub Flow: tạo nhánh ngắn hạn từ `main`, commit theo Conventional Commits, mở pull request và chờ CI/review trước khi merge.
+
+## 11. Triển khai và quay lui
+
+Production chạy trên Render (web, API, PostgreSQL), ảnh Docker lưu ở GitHub Container Registry.
+Chi tiết đầy đủ: [docs/deployment.md](docs/deployment.md).
+
+### Địa chỉ production
+
+- Web: https://brewlite-web-image.onrender.com
+- API: https://brewlite-api-image.onrender.com
+- Health check: https://brewlite-api-image.onrender.com/health
+
+### Triển khai
+
+- Merge pull request vào `main`: workflow CD chạy Lint và Test, build ảnh Docker, đẩy lên GHCR
+  (tag `sha-xxxxxxx` và `latest`), deploy lên Render khi biến `CD_DEPLOY_ENABLED` là `true`, rồi smoke test.
+- Gắn phiên bản: `git tag v0.1.0` rồi `git push origin v0.1.0`. Ảnh sẽ có thêm tag phiên bản đó.
+
+### Quay lui
+
+- Tự động: nếu smoke test lỗi, pipeline gửi lại ảnh `stable` cho API và web.
+- Thủ công: vào tab Actions, chọn workflow CD, bấm Run workflow từ một commit hoặc tag cũ đã ổn định.
+- Giới hạn: quay lui chỉ đưa ảnh Docker về bản cũ, migration Prisma không tự hoàn tác. Cơ sở dữ liệu
+  Render gói Free không có sao lưu.
