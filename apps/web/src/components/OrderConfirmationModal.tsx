@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { CartItem, Topping } from "@/types/product";
 import { clearCart } from "@/utils/cart";
-import { getStoredUser } from "@/utils/auth";
+import { clearSession, getStoredUser, isSessionActive, subscribeAuth } from "@/utils/auth";
 import {
+  Lock,
   CheckCircle2,
   X,
   ShoppingBag,
@@ -29,13 +31,64 @@ export default function OrderConfirmationModal({
 }: OrderConfirmationModalProps) {
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [orderCode, setOrderCode] = useState<string>("");
-  const [customerName, setCustomerName] = useState<string>(() => {
-    return getStoredUser()?.fullName || "Khách hàng";
-  });
+  const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
+  // Tên người nhận mặc định là tên tài khoản đang đăng nhập; người dùng vẫn sửa được.
+  const [nameInput, setNameInput] = useState<string | null>(null);
+  const customerName = nameInput ?? user?.fullName ?? "";
   const [pickupNote, setPickupNote] = useState<string>("Uống tại bàn");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   if (!isOpen) return null;
+
+  // Đặt hàng bắt buộc phải đăng nhập (và token chưa hết hạn). Đây là lớp chặn thứ hai,
+  // phòng khi phiên hết hạn lúc đang mở popup hoặc người dùng đăng xuất ở tab khác.
+  if (!user || !isSessionActive()) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-login-title"
+        data-testid="order-login-required"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      >
+        <div className="fixed inset-0 bg-[#2B1B12]/60 backdrop-blur-xs" onClick={onClose} />
+        <div className="relative w-full max-w-sm bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE0D2] p-8 text-center space-y-5 z-10">
+          <div className="w-14 h-14 rounded-full bg-[#FFF4EB] text-[#E06D20] mx-auto flex items-center justify-center">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 id="order-login-title" className="text-lg font-black text-[#2B1B12]">
+              Vui lòng đăng nhập để đặt hàng
+            </h2>
+            <p className="text-xs text-[#786354]">
+              Giỏ hàng của bạn vẫn được giữ nguyên sau khi đăng nhập.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <Link
+              href="/login?next=%2F%23cart&reason=checkout"
+              className="py-3 px-6 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-extrabold text-sm shadow-md shadow-orange-950/20 transition active:scale-95"
+            >
+              Đăng nhập
+            </Link>
+            <Link
+              href="/register?next=%2F%23cart&reason=checkout"
+              className="py-3 px-6 rounded-full border border-[#D8CDC0] text-[#4A3528] hover:bg-[#FAF4ED] text-sm font-bold transition"
+            >
+              Tạo tài khoản mới
+            </Link>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs font-bold text-[#786354] hover:text-[#E06D20] transition py-1.5"
+            >
+              Để sau
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -45,6 +98,11 @@ export default function OrderConfirmationModal({
   };
 
   const handleConfirmOrder = () => {
+    // Phiên hết hạn đúng lúc bấm gửi: xóa phiên cũ, popup sẽ chuyển sang yêu cầu đăng nhập lại
+    if (!isSessionActive()) {
+      clearSession();
+      return;
+    }
     setIsSubmitting(true);
     // Sinh mã đơn hàng chuẩn BrewLite theo thời gian thực (FR-19, FR-29)
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -169,7 +227,7 @@ export default function OrderConfirmationModal({
                     data-testid="order-customer-name"
                     type="text"
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => setNameInput(e.target.value)}
                     placeholder="Nhập tên của bạn"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D8CDC0] bg-white text-xs font-medium text-[#2B1B12] focus:outline-hidden focus:border-[#E06D20] transition"
                   />

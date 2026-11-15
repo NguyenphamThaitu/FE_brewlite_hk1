@@ -1,8 +1,13 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import Link from "next/link";
 import { getEmptyCartSnapshot, getStoredCart, subscribeCart, updateCartQty, removeFromCart, clearCart } from "@/utils/cart";
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
+import { getStoredUser, isSessionActive, subscribeAuth } from "@/utils/auth";
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Lock } from "lucide-react";
+
+// Đăng nhập xong thì quay về trang chủ và tự mở lại giỏ hàng (FR-18). Giỏ hàng nằm trong localStorage nên không bị mất.
+const LOGIN_TO_CHECKOUT_QUERY = "?next=%2F%23cart&reason=checkout";
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -16,8 +21,12 @@ export default function CartDrawer({ isOpen, onClose, onCheckout }: CartDrawerPr
     getStoredCart,
     getEmptyCartSnapshot
   );
+  const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
 
   if (!isOpen) return null;
+
+  // Đặt hàng bắt buộc phải đăng nhập (và token chưa hết hạn)
+  const canCheckout = !!user && isSessionActive();
 
   const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
 
@@ -163,6 +172,19 @@ export default function CartDrawer({ isOpen, onClose, onCheckout }: CartDrawerPr
                 </span>
               </div>
 
+              {!canCheckout && (
+                <div
+                  role="status"
+                  data-testid="cart-login-required"
+                  className="flex items-start gap-2.5 rounded-2xl bg-amber-50 border border-amber-200 px-3.5 py-3 text-xs text-amber-900"
+                >
+                  <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <p>
+                    Bạn cần <strong>đăng nhập</strong> để đặt hàng. Giỏ hàng của bạn vẫn được giữ nguyên.
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -172,20 +194,44 @@ export default function CartDrawer({ isOpen, onClose, onCheckout }: CartDrawerPr
                 >
                   Xóa hết
                 </button>
-                <button
-                  type="button"
-                  data-testid="cart-checkout-button"
-                  onClick={() => {
-                    if (onCheckout) {
-                      onCheckout();
-                    }
-                  }}
-                  className="flex-1 py-3 px-4 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-bold shadow-md shadow-orange-950/15 flex items-center justify-center gap-2 transition active:scale-95"
-                >
-                  <span>Đặt hàng & Thanh toán</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                {canCheckout ? (
+                  <button
+                    type="button"
+                    data-testid="cart-checkout-button"
+                    onClick={() => {
+                      if (onCheckout) {
+                        onCheckout();
+                      }
+                    }}
+                    className="flex-1 py-3 px-4 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-bold shadow-md shadow-orange-950/15 flex items-center justify-center gap-2 transition active:scale-95"
+                  >
+                    <span>Đặt hàng & Thanh toán</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <Link
+                    href={`/login${LOGIN_TO_CHECKOUT_QUERY}`}
+                    data-testid="cart-login-button"
+                    className="flex-1 py-3 px-4 rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-bold shadow-md shadow-orange-950/15 flex items-center justify-center gap-2 transition active:scale-95"
+                  >
+                    <span>Đăng nhập để đặt hàng</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
               </div>
+
+              {!canCheckout && (
+                <p className="text-center text-xs text-[#786354]">
+                  Chưa có tài khoản?{" "}
+                  <Link
+                    href={`/register${LOGIN_TO_CHECKOUT_QUERY}`}
+                    data-testid="cart-register-link"
+                    className="font-bold text-[#E06D20] hover:underline"
+                  >
+                    Đăng ký ngay
+                  </Link>
+                </p>
+              )}
             </div>
           )}
         </div>

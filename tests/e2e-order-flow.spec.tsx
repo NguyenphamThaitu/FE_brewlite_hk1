@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import MenuPage from "@/app/page";
 import * as productsService from "@/services/products";
 import { clearCart, getStoredCart } from "@/utils/cart";
+import { saveSession } from "@/utils/auth";
 import { Product } from "@/types/product";
 
 // Mock products fetched from API matching apps/api/src/prisma/seed.ts
@@ -53,11 +54,22 @@ vi.mock("@/services/products", async () => {
 
 describe("E2E Test: Luồng Đặt Món và Xác Nhận Đơn Hàng (Task 5.2 - NFR-24)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    clearCart();
-    localStorage.clear();
+  vi.clearAllMocks();
+  clearCart();
+  localStorage.clear();
 
-    vi.mocked(productsService.fetchProducts).mockResolvedValue(mockSeedProducts);
+  // Giả lập khách hàng đã đăng nhập để kiểm thử luồng đặt hàng
+  saveSession({
+    accessToken: "e2e-test-token",
+    user: {
+      id: 1,
+      email: "customer@brewlite.test",
+      fullName: "Nguyễn Văn A",
+      role: "CUSTOMER",
+    },
+  });
+
+  vi.mocked(productsService.fetchProducts).mockResolvedValue(mockSeedProducts);
 
     // Mock chi tiết món khớp với schema size và topping của Backend Prisma Seed
     vi.mocked(productsService.fetchProductDetail).mockImplementation(

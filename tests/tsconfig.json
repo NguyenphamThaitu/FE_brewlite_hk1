@@ -11,10 +11,9 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "jsx": "react-jsx",
-    "baseUrl": "../apps/web",
     "paths": {
-      "@/*": ["src/*"],
-      "*": ["*", "node_modules/*"]
+      "@/*": ["../apps/web/src/*"],
+      "*": ["../apps/web/*", "../apps/web/node_modules/*"]
     },
     "typeRoots": ["../apps/web/node_modules/@types"]
   },

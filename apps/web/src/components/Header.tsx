@@ -2,7 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Coffee, ShoppingBag, User, Sparkles, Clock } from "lucide-react";
+import { Coffee, ShoppingBag, Sparkles, Clock } from "lucide-react";
+import AccountMenu from "@/components/AccountMenu";
 import { getEmptyCartSnapshot, getStoredCart, subscribeCart } from "@/utils/cart";
 
 interface HeaderProps {
@@ -98,14 +99,8 @@ export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) 
 
         {/* Actions */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* User Profile / Login */}
-          <Link
-            href="/login"
-            className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] text-xs font-bold text-[#3D291D] bg-white border border-[#DED2C3] hover:border-[#E06D20] hover:text-[#E06D20] rounded-full transition shadow-2xs active:scale-95"
-          >
-            <User className="w-4 h-4 text-[#786354]" />
-            <span className="hidden sm:inline">Tài khoản</span>
-          </Link>
+          {/* Tài khoản: Đăng nhập / Đăng ký / Đăng xuất */}
+          <AccountMenu />
 
           {/* Cart Trigger */}
           <button
