@@ -24,14 +24,37 @@ Ruleset `main-protection` (trạng thái `active`, áp dụng cho nhánh mặc �
 | Luật | Cấu hình |
 |------|----------|
 | `pull_request` | Mọi thay đổi vào `main` phải qua pull request |
-| `required_status_checks` | Check `api` bắt buộc phải pass |
+| `required_status_checks` | Check `api` và `web` bắt buộc phải pass (check `web` được thêm ngày 14/11/2026) |
 | `non_fast_forward` | Cấm force push |
 | `deletion` | Cấm xóa nhánh `main` |
 
-Vì vậy PR có lint, test hoặc build lỗi ở backend thì nút merge bị khóa (trạng thái `BLOCKED`).
+Vì vậy PR có lint, test hoặc build lỗi ở backend hoặc frontend thì nút merge bị khóa (trạng thái `BLOCKED`).
 
-> **Cần làm:** ruleset mới bắt buộc check `api`. Chủ repository cần thêm check `web` vào
-> `required_status_checks` để PR làm hỏng frontend cũng bị chặn merge như backend.
+### Minh chứng PR bị chặn merge
+
+[PR #58 – feat(task-5): complete frontend checkout and release documentation](https://github.com/NguyenphamThaitu/FE_brewlite_hk1/pull/58)
+đổi màn hình xác nhận đơn nhưng chưa cập nhật bài E2E tương ứng:
+
+- [Run 43616643304, job `web`](https://github.com/NguyenphamThaitu/FE_brewlite_hk1/actions/runs/43616643304/job/132513043740) – 2026-11-14:
+  job `api` pass, job `web` thất bại ở bước **Unit Test**.
+
+  | Bước | Kết quả |
+  |------|---------|
+  | Install | ✅ success |
+  | Lint | ✅ success |
+  | Unit Test | ❌ failure |
+  | Build | ⏭ skipped |
+
+  ```
+  FAIL  ../../tests/e2e-order-flow.spec.tsx > E2E Test: Luồng Đặt Món và Xác Nhận Đơn Hàng
+  TestingLibraryElementError: Unable to find an element by: [data-testid="order-success-title"]
+   Test Files  1 failed | 7 passed (8)
+        Tests  2 failed | 44 passed (46)
+  ##[error]Process completed with exit code 1.
+  ```
+
+- Trạng thái merge của PR ngày 15/11/2026: `BLOCKED`. Check `api` đã pass nhưng PR vẫn không merge được
+  vì check bắt buộc `web` thất bại.
 
 ## 3. Lần pipeline thành công
 
@@ -152,7 +175,13 @@ và `docs/images/ci-fail.png`.
 
 ## 7. Hạn chế hiện tại
 
-- Ruleset mới bắt buộc check `api`; check `web` chưa bắt buộc (xem mục 2).
 - Integration test (`npm run test:int`, cần PostgreSQL) chưa chạy trong CI.
 - Ruleset đặt số approve tối thiểu là 0. Quy ước nhóm vẫn yêu cầu 1 reviewer theo bảng phân công
   (xem [`CONTRIBUTING.md`](../CONTRIBUTING.md)).
+
+## 8. Liên quan: Continuous Delivery (Task 5.3)
+
+Pipeline triển khai [`.github/workflows/cd.yml`](../.github/workflows/cd.yml) chạy sau khi merge vào `main`:
+Lint và Test → Build và đẩy ảnh → Deploy lên Render → Smoke test. Ví dụ lần chạy thành công:
+[run 43724396881](https://github.com/NguyenphamThaitu/FE_brewlite_hk1/actions/runs/43724396881) (2026-11-15).
+Chi tiết pipeline, smoke test và quay lui nằm ở [`docs/deployment.md`](deployment.md) (mục 3, 5 và 7).
