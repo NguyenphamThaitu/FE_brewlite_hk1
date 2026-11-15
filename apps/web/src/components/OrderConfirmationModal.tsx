@@ -60,6 +60,7 @@ export default function OrderConfirmationModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("vi-VN", {
@@ -207,9 +208,8 @@ export default function OrderConfirmationModal({
         sessionStorage.removeItem(PENDING_PAYMENT_KEY);
         clearCart();
 
-        setSuccessMessage(
-          `${payment.message}. Mã đơn hàng: #${payment.orderId}`,
-        );
+        setSuccessOrderId(payment.orderId);
+setSuccessMessage(payment.message);
       } else {
         // Thanh toán thất bại vẫn lưu đơn để khách có thể thử lại.
         // Tạo key mới để backend không trả lại kết quả thất bại cũ.
@@ -524,23 +524,53 @@ export default function OrderConfirmationModal({
           )}
 
           {successMessage && (
-            <p
-              role="status"
-              className="p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold"
-            >
-              {successMessage}
-            </p>
-          )}
+  <div
+    role="status"
+    className="p-4 rounded-2xl bg-green-50 border border-green-200 space-y-3"
+  >
+    <h3
+      data-testid="order-success-title"
+      className="text-lg font-black text-green-800"
+    >
+      Đặt hàng thành công!
+    </h3>
+
+    <p className="text-sm text-green-700">
+      {successMessage}
+    </p>
+
+    <p
+      data-testid="order-code"
+      className="text-sm font-bold text-[#2B1B12]"
+    >
+      Mã đơn hàng: #BL-{successOrderId}
+    </p>
+
+    <p
+      data-testid="order-status-badge"
+      className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold"
+    >
+      Đã tiếp nhận (Chờ pha chế)
+    </p>
+
+    <p className="text-sm text-[#4A3528]">
+      Hình thức nhận món: {pickupNote}
+    </p>
+  </div>
+)}
         </div>
 
         <div className="p-4 sm:p-6 bg-white border-t border-[#EAE0D2] flex gap-3">
           <button
             type="button"
             onClick={onClose}
+            data-testid={successMessage ? "order-finish-button" : undefined}
             disabled={isSubmitting}
             className="px-5 py-3 rounded-full border border-[#D8CDC0] text-[#4A3528] hover:bg-[#FAF4ED] text-xs font-bold transition disabled:opacity-50"
           >
-            {successMessage ? "Đóng" : "Quay lại"}
+            {successMessage
+  ? "Hoàn tất & Tiếp tục xem thực đơn"
+  : "Quay lại"}
           </button>
 
           {!successMessage && (
