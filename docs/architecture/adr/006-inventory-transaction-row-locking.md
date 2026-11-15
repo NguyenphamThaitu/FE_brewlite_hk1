@@ -32,9 +32,9 @@ khi tạo đơn thất bại thì không để lại đơn dở dang hay kho b�
   không bán vượt kho.
 - Khóa dòng chỉ giữ trong lúc tạo đơn (không gọi dịch vụ ngoài trong transaction), nên thời gian
   khóa ngắn.
-- Kho bị trừ ngay khi tạo đơn. Đơn chưa thanh toán bỏ dở sẽ giữ nguyên liệu đến khi bị hủy. Hiện
-  chưa có cơ chế tự hủy đơn quá hạn (FR-22, Should); nếu làm, thêm job hủy đơn `PENDING_PAYMENT`
-  quá 15 phút, dùng lại hàm hủy đơn có điều kiện ở trên.
+- Kho bị trừ ngay khi tạo đơn. Đơn chưa thanh toán bỏ dở sẽ giữ nguyên liệu đến khi bị hủy. Từ
+  PR #22, `OrderExpiryService` tự hủy đơn `PENDING_PAYMENT`/`PAYMENT_FAILED` quá 15 phút (FR-22) và
+  hoàn kho bằng chính hàm hủy đơn có điều kiện ở trên; thời hạn đổi bằng `ORDER_PAYMENT_TIMEOUT_MINUTES`.
 - SRS (FR-20) chỉ yêu cầu "kiểm tra và trừ tồn kho"; tồn kho theo nguyên liệu là cách hiện thực chi
   tiết hơn, vẫn đáp ứng FR-03 (món hết nguyên liệu thì đặt bị `409`).
 - NFR-15 yêu cầu test 20 request đồng thời với tồn kho cho 5 đơn; test hiện có kiểm tra trường hợp
