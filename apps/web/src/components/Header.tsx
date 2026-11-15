@@ -1,16 +1,27 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Coffee, ShoppingBag, User } from "lucide-react";
-import { getStoredCart, subscribeCart } from "@/utils/cart";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Coffee, LogOut, ShoppingBag, User } from "lucide-react";
+import { getServerCart, getStoredCart, subscribeCart } from "@/utils/cart";
+import { clearSession, getStoredUser, subscribeAuth } from "@/utils/auth";
 
 interface HeaderProps {
   onOpenCart: () => void;
 }
 
 export default function Header({ onOpenCart }: HeaderProps) {
-  const items = useSyncExternalStore(subscribeCart, getStoredCart, () => []);
+  const items = useSyncExternalStore(subscribeCart, getStoredCart, getServerCart);
   const cartCount = items.reduce((sum, item) => sum + item.qty, 0);
+  const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
+  const router = useRouter();
+
+  // FR-16: đăng xuất xóa token phía client và chuyển về menu
+  const handleLogout = () => {
+    clearSession();
+    router.push("/");
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-amber-100 shadow-sm transition-all">
@@ -51,13 +62,44 @@ export default function Header({ onOpenCart }: HeaderProps) {
         {/* Actions */}
         <div className="flex items-center gap-3">
           {/* User Profile / Login */}
-          <button
-            type="button"
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-amber-800 hover:bg-amber-50 rounded-xl transition"
-          >
-            <User className="w-5 h-5 text-neutral-500" />
-            <span className="hidden sm:inline">Tài khoản</span>
-          </button>
+          {user ? (
+            <>
+              <span
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700"
+                title={user.email}
+              >
+                <User className="w-5 h-5 text-neutral-500" />
+                <span className="hidden sm:inline max-w-[140px] truncate">
+                  {user.fullName}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-[#a6192e] hover:bg-red-50 rounded-xl transition"
+                aria-label="Đăng xuất"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="hidden sm:inline">Đăng xuất</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-neutral-700 hover:text-[#a6192e] hover:bg-red-50 rounded-xl transition"
+              >
+                <User className="w-5 h-5 text-neutral-500" />
+                <span>Tài khoản</span>
+              </Link>
+              <Link
+                href="/register"
+                className="hidden sm:inline-flex px-3.5 py-2 text-sm font-semibold text-[#a6192e] border border-[#a6192e] hover:bg-[#a6192e] hover:text-white rounded-xl transition"
+              >
+                Đăng ký
+              </Link>
+            </>
+          )}
 
           {/* Cart Trigger */}
           <button
