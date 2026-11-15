@@ -120,7 +120,11 @@ Quay lui chỉ đưa **ảnh Docker** về bản cũ. Migration của Prisma ch�
 Nếu một migration đã áp dụng làm đổi cấu trúc dữ liệu, cần xử lý riêng (migration sửa lỗi hoặc khôi phục
 dữ liệu), xem mục 9.
 
-Kết quả thử quay lui thực tế: ngày 15/11/2026, lần chạy CD #5 (chạy tay) cố ý làm sai để thử nhánh lỗi nên thất bại, pipeline chạy bước quay lui về ảnh `stable`; lần chạy CD #6 (chạy tay) sau đó thành công. Danh sách lần chạy: tab Actions, workflow CD.
+Kết quả thử quay lui thực tế (15/11/2026): lần chạy CD #5 (chạy tay) cố ý làm sai để thử nhánh lỗi. Smoke test thất bại, pipeline bỏ qua bước đánh dấu `stable` và chạy bước quay lui, Render nhận lệnh quay lui cả API và web về ảnh `stable` (HTTP 200). Lần chạy CD #6 (chạy tay) sau đó thành công.
+
+![Smoke test thất bại](images/cd-rollback-smoke-fail.png)
+
+![Bước quay lui về stable](images/cd-rollback-step.png)
 
 ## 8. Bảo mật production
 
