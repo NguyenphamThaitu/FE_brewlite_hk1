@@ -12,11 +12,8 @@ import {
   Heart,
   ShieldCheck,
   Clock,
-  Flame,
   Award,
   ArrowRight,
-  Leaf,
-  Users,
   CheckCircle2,
   Cpu,
 } from "lucide-react";
@@ -81,7 +78,7 @@ export default function AboutPage() {
                   BrewLite Philosophy
                 </span>
                 <p className="text-base font-extrabold mt-2">
-                  "Mỗi giọt cà phê là một lời chào ngày mới tràn đầy cảm hứng."
+                  &ldquo;Mỗi giọt cà phê là một lời chào ngày mới tràn đầy cảm hứng.&rdquo;
                 </p>
               </div>
             </div>

@@ -25,3 +25,4 @@ describe("AboutPage (/about)", () => {
     expect(menuLinks.length).toBeGreaterThan(0);
   });
 });
+
