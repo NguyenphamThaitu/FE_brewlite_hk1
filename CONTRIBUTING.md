@@ -63,11 +63,10 @@ thể hiện đúng thứ tự.
 Ruleset `main-protection` trên GitHub (đang `active`) áp dụng cho `main`:
 
 - Bắt buộc mọi thay đổi đi qua pull request.
-- Bắt buộc status check `api` của workflow CI (Install → Lint → Unit Test → Build) pass.
+- Bắt buộc status check `api` và `web` của workflow CI (Install → Lint → Unit Test → Build) pass.
 - Cấm force push và cấm xóa nhánh `main`.
 
-Đề xuất bổ sung cho chủ repository: đặt số approve tối thiểu là 1, và thêm check `web` khi CI có
-job cho frontend. Trong lúc ruleset còn để 0 approve, nhóm vẫn tự tuân thủ điều kiện "có ít nhất
+Đề xuất bổ sung cho chủ repository: đặt số approve tối thiểu là 1. Trong lúc ruleset còn để 0 approve, nhóm vẫn tự tuân thủ điều kiện "có ít nhất
 1 approve" ở mục 2. Minh chứng CI xem [`docs/ci-evidence.md`](docs/ci-evidence.md).
 
 ## 3. Quy ước commit (Conventional Commits)
