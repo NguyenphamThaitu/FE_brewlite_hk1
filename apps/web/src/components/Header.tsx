@@ -86,7 +86,7 @@ export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) 
             Về BrewLite
           </Link>
           <Link
-            href="/#order-history"
+            href="/history"
             className={`px-4 py-1.5 rounded-full text-xs transition ${
               activeTab === "history"
                 ? "bg-white text-[#E06D20] font-extrabold shadow-2xs"
