@@ -50,6 +50,31 @@ export const getToken = (): string | null => {
   }
 };
 
+/** Đọc thời điểm hết hạn (`exp`, tính bằng giây) trong payload của JWT. Trả về null nếu không đọc được. */
+const readTokenExpiry = (token: string): number | null => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const exp = (JSON.parse(json) as { exp?: unknown }).exp;
+    return typeof exp === "number" ? exp : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Có phiên đăng nhập còn dùng được hay không: phải có cả token lẫn thông tin người dùng,
+ * và token chưa hết hạn (API cấp JWT sống JWT_EXPIRES_IN, mặc định 1 ngày).
+ * Đây chỉ là kiểm tra ở client để chặn sớm; API vẫn kiểm tra lại token ở mọi route cần đăng nhập.
+ */
+export const isSessionActive = (): boolean => {
+  const token = getToken();
+  if (!token || !getStoredUser()) return false;
+  const exp = readTokenExpiry(token);
+  return exp === null || exp * 1000 > Date.now();
+};
+
 export const saveSession = (session: AuthSession): void => {
   if (typeof window === "undefined") return;
   try {
@@ -81,7 +106,4 @@ export const subscribeAuth = (callback: () => void): (() => void) => {
     window.removeEventListener(AUTH_EVENT, callback);
     window.removeEventListener("storage", callback);
   };
-};
-export const isSessionActive = (): boolean => {
-  return Boolean(getToken() && getStoredUser());
 };

@@ -71,24 +71,25 @@ vi.mock("@/utils/orders-api", () => ({
 
 describe("E2E Test: Luồng đặt món và thanh toán mô phỏng BrewLite", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    clearCart();
-    localStorage.clear();
-    sessionStorage.clear();
+vi.clearAllMocks();
+clearCart();
+localStorage.clear();
+sessionStorage.clear();
 
+    // Giả lập khách hàng đã đăng nhập để kiểm thử luồng đặt hàng.
     saveSession({
-  accessToken: "e2e-test-token",
-  user: {
-    id: 1,
-    email: "customer@brewlite.test",
-    fullName: "Nguyễn Văn A",
-    role: "CUSTOMER",
-  },
-});
-
-    vi.mocked(productsService.fetchProducts).mockResolvedValue(
-      mockSeedProducts
-    );
+      accessToken: "e2e-test-token",
+      user: {
+        id: 1,
+        email: "customer@brewlite.test",
+        fullName: "Nguyễn Văn A",
+        role: "CUSTOMER",
+      },
+    });
+  
+vi.mocked(productsService.fetchProducts).mockResolvedValue(
+  mockSeedProducts
+);
 
     vi.mocked(productsService.fetchProductDetail).mockImplementation(
       async (id: string | number) => {
