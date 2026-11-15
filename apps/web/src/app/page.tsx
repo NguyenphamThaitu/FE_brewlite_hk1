@@ -61,6 +61,16 @@ export default function MenuPage() {
     return () => controller.abort();
   }, [retryCount]);
 
+  // Quay lại từ trang đăng nhập/đăng ký (?next=/#cart): mở lại giỏ hàng để khách đặt món tiếp
+  useEffect(() => {
+    if (window.location.hash !== "#cart") return;
+    const timer = window.setTimeout(() => {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      setIsCartOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const handleRetry = () => {
     setIsLoading(true);
     setError(null);
