@@ -13,7 +13,7 @@ class CreateVnpayDto {
 export class PaymentsController {
   constructor(private payments: PaymentsService) {}
 
-  /** Khách bấm "Thanh toán": trả về paymentUrl để frontend redirect sang VNPay. Bắt buộc header Idempotency-Key (FR-06) */
+  /** Khách bấm "Thanh toán": trả về paymentUrl để frontend redirect sang VNPay. Bắt buộc header Idempotency-Key (FR-26) */
   @Post() @HttpCode(200) @UseGuards(JwtAuthGuard)
   create(@CurrentUser() u: AuthUser, @Body() dto: CreateVnpayDto, @Req() req: Request, @Headers('idempotency-key') key?: string) {
     const idempotencyKey = requireIdempotencyKey(key);

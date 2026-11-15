@@ -1,0 +1,119 @@
+
+@startuml
+title SEQUENCE DIAGRAM - PLACE ORDER AND PAYMENT
+
+actor Customer
+participant "Next.js UI" as UI
+participant "NestJS API" as API
+database Database as DB
+participant "Payment Service" as PS
+
+autonumber
+
+== 1. Place Order ==
+
+Customer -> UI: Select products and click Checkout
+UI -> API: POST /api/orders\nJWT + OrderRequest
+activate API
+
+API -> API: Verify JWT
+API -> API: Validate order data
+
+alt JWT invalid
+    API --> UI: 401 Unauthorized
+    UI --> Customer: Request login again
+
+else JWT valid
+
+    alt Invalid order data
+        API --> UI: 400 Bad Request
+        UI --> Customer: Display validation errors
+
+    else Valid order data
+
+        API -> DB: Check products and stock
+        activate DB
+        DB --> API: Product information and stock
+        deactivate DB
+
+        alt Insufficient stock
+            API --> UI: 409 Insufficient stock
+            UI --> Customer: Display out-of-stock message
+
+        else Stock available
+
+            group Database Transaction
+                API -> DB: BEGIN TRANSACTION
+                API -> DB: INSERT Order (PENDING_PAYMENT)
+                API -> DB: INSERT OrderItems
+                API -> DB: UPDATE product stock
+                API -> DB: COMMIT
+                DB --> API: Transaction successful
+            end
+
+            API --> UI: 201 Created\norderId + totalAmount
+            UI --> Customer: Display order information
+
+            == 2. Payment Request ==
+
+            Customer -> UI: Confirm payment
+            UI -> API: POST /api/payments\norderId + Idempotency-Key
+            API -> API: Verify JWT and validate payment request
+
+            API -> DB: Find Idempotency-Key
+            activate DB
+            DB --> API: Existing key or not found
+            deactivate DB
+
+            alt Idempotency key already exists
+                API -> DB: Get previous payment result
+                DB --> API: Existing payment status
+                API --> UI: Return previous result/status
+                UI --> Customer: Display existing payment status
+
+            else New Idempotency key
+
+                API -> DB: Save payment request (PENDING)
+                DB --> API: Payment request saved
+
+                API -> PS: Create payment\norderId + amount + Idempotency-Key
+                activate PS
+
+                alt Payment successful
+                    PS --> API: Payment Success + transactionId
+
+                    group Update successful payment
+                        API -> DB: BEGIN TRANSACTION
+                        API -> DB: Update Payment = PAID
+                        API -> DB: Update Order = CONFIRMED
+                        API -> DB: COMMIT
+                        DB --> API: Update successful
+                    end
+
+                    API --> UI: 200 OK\nPayment successful + order details
+                    UI --> Customer: Display payment success
+
+                else Payment failed
+                    PS --> API: Payment Failed
+
+                    group Handle failed payment
+                        API -> DB: BEGIN TRANSACTION
+                        API -> DB: Update Payment = FAILED
+                        API -> DB: Cancel order or set retry status
+                        API -> DB: Restore stock if order cancelled
+                        API -> DB: COMMIT
+                        DB --> API: Update successful
+                    end
+
+                    API --> UI: Payment failed + reason
+                    UI --> Customer: Display payment failure\nand retry option
+                end
+
+                deactivate PS
+            end
+        end
+    end
+end
+
+deactivate API
+@enduml

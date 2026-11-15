@@ -1,6 +1,8 @@
 import { ConflictException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderStatus, Payment, PaymentStatus, Prisma } from '@prisma/client';
+import { VNPAY_LINK_TTL_MINUTES } from '../orders/order-expiry';
+import { changeOrderStatus } from '../orders/order-status';
 import { UNPAID } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaymentUrl, verifySignature, vnpDate } from './vnpay';
@@ -29,7 +31,7 @@ export class PaymentsService {
 
   /**
    * Tạo link thanh toán VNPay cho đơn đang PENDING_PAYMENT hoặc PAYMENT_FAILED (thanh toán lại).
-   * Idempotent (FR-06):
+   * Idempotent (FR-26):
    *  - Gửi lại cùng Idempotency-Key → trả lại đúng giao dịch đã tạo, không tạo giao dịch mới.
    *  - Key đã dùng cho đơn khác hoặc người khác → 409.
    *  - Đơn đang có giao dịch PENDING → dùng lại giao dịch đó (cùng vnp_TxnRef), tránh hai link cùng trừ tiền.
@@ -82,7 +84,7 @@ export class PaymentsService {
     const paymentUrl = buildPaymentUrl(c.url, c.secret, {
       vnp_Version: '2.1.0', vnp_Command: 'pay', vnp_TmnCode: c.tmn,
       vnp_Amount: payment.amount * 100, // VNPay yêu cầu nhân 100
-      vnp_CreateDate: vnpDate(now), vnp_ExpireDate: vnpDate(new Date(now.getTime() + 15 * 60_000)),
+      vnp_CreateDate: vnpDate(now), vnp_ExpireDate: vnpDate(new Date(now.getTime() + VNPAY_LINK_TTL_MINUTES * 60_000)),
       vnp_CurrCode: 'VND', vnp_IpAddr: ipAddr, vnp_Locale: 'vn',
       vnp_OrderInfo: `Thanh toan don hang ${payment.orderId}`, vnp_OrderType: 'other',
       vnp_ReturnUrl: c.returnUrl, vnp_TxnRef: payment.txnRef,
@@ -116,12 +118,13 @@ export class PaymentsService {
         },
       });
       if (!res.count) return false;
+      // IPN do VNPay gọi nên người đổi trạng thái là hệ thống (changedById = null)
       if (success) {
         // Nếu đơn đã bị hủy trước đó thì không chuyển PAID (giao dịch SUCCESS vẫn được ghi để đối soát/hoàn tiền)
-        await tx.order.updateMany({ where: { id: payment.orderId, status: { in: UNPAID } }, data: { status: OrderStatus.PAID } });
+        await changeOrderStatus(tx, payment.orderId, UNPAID, OrderStatus.PAID, null, 'PAYMENT_SUCCESS');
       } else {
-        // Thanh toán lỗi → PAYMENT_FAILED, giữ nguyên kho để khách thanh toán lại hoặc tự hủy đơn (FR-06, FR-08)
-        await tx.order.updateMany({ where: { id: payment.orderId, status: OrderStatus.PENDING_PAYMENT }, data: { status: OrderStatus.PAYMENT_FAILED } });
+        // Thanh toán lỗi → PAYMENT_FAILED, giữ nguyên kho để khách thanh toán lại hoặc tự hủy đơn (FR-27)
+        await changeOrderStatus(tx, payment.orderId, [OrderStatus.PENDING_PAYMENT], OrderStatus.PAYMENT_FAILED, null, 'PAYMENT_FAILED');
       }
       return true;
     });

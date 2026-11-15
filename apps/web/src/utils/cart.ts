@@ -1,22 +1,42 @@
 import { CartItem } from "@/types/product";
 
 const CART_STORAGE_KEY = "brewlite_cart";
+const EMPTY_CART: CartItem[] = [];
+
+let cachedRaw: string | null = null;
+let cachedCart: CartItem[] = EMPTY_CART;
+
+export const getEmptyCartSnapshot = (): CartItem[] => EMPTY_CART;
 
 export const getStoredCart = (): CartItem[] => {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return EMPTY_CART;
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) {
+      cachedRaw = null;
+      cachedCart = EMPTY_CART;
+      return EMPTY_CART;
+    }
+    if (raw === cachedRaw) {
+      return cachedCart;
+    }
+    const parsed = JSON.parse(raw);
+    cachedRaw = raw;
+    cachedCart = Array.isArray(parsed) ? parsed : EMPTY_CART;
+    return cachedCart;
   } catch (error) {
     console.error("Lỗi khi đọc giỏ hàng từ localStorage:", error);
-    return [];
+    return EMPTY_CART;
   }
 };
 
 export const saveCart = (items: CartItem[]): void => {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    const serialized = JSON.stringify(items);
+    cachedRaw = serialized;
+    cachedCart = items;
+    localStorage.setItem(CART_STORAGE_KEY, serialized);
     window.dispatchEvent(new Event("brewlite_cart_updated"));
   } catch (error) {
     console.error("Lỗi khi lưu giỏ hàng vào localStorage:", error);
@@ -24,11 +44,11 @@ export const saveCart = (items: CartItem[]): void => {
 };
 
 export const addToCart = (newItem: Omit<CartItem, "id" | "totalPrice">): void => {
-  const currentCart = getStoredCart();
+  const currentCart = getStoredCart().map((item) => ({ ...item }));
 
   // Find if same product with exact same size, same toppings and same note already exists
   const toppingIds = newItem.toppings.map((t) => t.id).sort().join(",");
-  
+
   const existingIndex = currentCart.findIndex((item) => {
     const itemToppingIds = item.toppings.map((t) => t.id).sort().join(",");
     return (
@@ -40,7 +60,7 @@ export const addToCart = (newItem: Omit<CartItem, "id" | "totalPrice">): void =>
   });
 
   if (existingIndex > -1) {
-    // Merge quantity (FR-03 quy tắc gộp món trùng)
+    // Merge quantity (FR-10 quy tắc gộp món trùng)
     currentCart[existingIndex].qty += newItem.qty;
     currentCart[existingIndex].totalPrice =
       currentCart[existingIndex].qty * currentCart[existingIndex].unitPrice;
@@ -67,7 +87,7 @@ export const updateCartQty = (cartItemId: string, newQty: number): void => {
     removeFromCart(cartItemId);
     return;
   }
-  const currentCart = getStoredCart();
+  const currentCart = getStoredCart().map((item) => ({ ...item }));
   const index = currentCart.findIndex((item) => item.id === cartItemId);
   if (index > -1) {
     currentCart[index].qty = newQty;
@@ -78,6 +98,8 @@ export const updateCartQty = (cartItemId: string, newQty: number): void => {
 
 export const clearCart = (): void => {
   if (typeof window === "undefined") return;
+  cachedRaw = null;
+  cachedCart = EMPTY_CART;
   localStorage.removeItem(CART_STORAGE_KEY);
   window.dispatchEvent(new Event("brewlite_cart_updated"));
 };
@@ -91,4 +113,3 @@ export const subscribeCart = (callback: () => void): (() => void) => {
     window.removeEventListener("storage", callback);
   };
 };
-

@@ -15,7 +15,8 @@
     "start:prod": "prisma migrate deploy && node dist/main.js",
     "prisma:generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy"
+    "migrate:deploy": "prisma migrate deploy",
+    "db:setup": "npm run build && prisma migrate deploy && prisma db seed"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.9",
@@ -54,6 +55,7 @@
     "typescript-eslint": "^8.72.2"
   },
   "prisma": {
-    "schema": "prisma/schema.prisma"
+    "schema": "prisma/schema.prisma",
+    "seed": "node dist/prisma/seed.js"
   }
 }

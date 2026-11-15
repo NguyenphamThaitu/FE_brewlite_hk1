@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Payment, PaymentStatus, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import { changeOrderStatus } from '../orders/order-status';
 import { UNPAID } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CardDecision, decideCard, decideWallet, failureMessage, MockMethod } from './mock-payment';
@@ -58,9 +59,9 @@ export class MockPaymentsService {
           },
         });
         if (decision.ok) {
-          await tx.order.update({ where: { id: fresh.id }, data: { status: OrderStatus.PAID } });
+          await changeOrderStatus(tx, fresh.id, UNPAID, OrderStatus.PAID, userId, 'PAYMENT_SUCCESS');
         } else {
-          await tx.order.updateMany({ where: { id: fresh.id, status: OrderStatus.PENDING_PAYMENT }, data: { status: OrderStatus.PAYMENT_FAILED } });
+          await changeOrderStatus(tx, fresh.id, [OrderStatus.PENDING_PAYMENT], OrderStatus.PAYMENT_FAILED, userId, 'PAYMENT_FAILED');
         }
         return created;
       });

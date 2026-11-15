@@ -10,6 +10,8 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgr
 process.env.JWT_SECRET = 'test-secret';
 process.env.VNPAY_TMN_CODE = 'TESTTMN';
 process.env.VNPAY_HASH_SECRET = 'TESTSECRET';
+// Tắt quét định kỳ đơn quá hạn: test gọi expireOverdue() trực tiếp
+process.env.ORDER_EXPIRY_CHECK_INTERVAL_SECONDS = '0';
 const SECRET = 'TESTSECRET';
 
 describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
@@ -471,6 +473,154 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       await http().post('/payments').set(key()).send({ orderId: order.id, method: 'WALLET' }).expect(401);
       const other = await register('mock-other@test.vn');
       await payMock(other, { orderId: order.id, method: 'WALLET' }).expect(404);
+    });
+  });
+
+  // Dùng chung cho các nhóm test FR-22, FR-33, FR-34
+  const staffLogin = async () =>
+    (await http().post('/auth/login').send({ email: 'staff@brewlite.local', password: 'Staff@123' }).expect(200)).body.accessToken as string;
+  const ONE_DRINK = [{ productId: 1, sizeId: 1, quantity: 1 }];
+  const newPaidOrder = async (t: string) => {
+    const order = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+    await http().post('/payments').set(auth(t)).set(key()).send({ orderId: order.id, method: 'WALLET' }).expect(200);
+    return order;
+  };
+  const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
+  const allStock = async () => (await prisma.ingredient.findMany({ orderBy: { id: 'asc' } })).map((i) => [i.id, Number(i.quantity)]);
+
+  describe('Màn hình quầy: GET /staff/orders (FR-33)', () => {
+    it('chưa đăng nhập 401, khách 403, status ngoài danh sách cho phép 400', async () => {
+      const t = await register('quay-khach@test.vn');
+      const staff = await staffLogin();
+      await http().get('/staff/orders').expect(401);
+      await http().get('/staff/orders').set(auth(t)).expect(403);
+      await http().get('/staff/orders?status=PENDING_PAYMENT').set(auth(staff)).expect(400);
+      await http().get('/staff/orders?status=XYZ').set(auth(staff)).expect(400);
+    });
+
+    it('chỉ trả đơn đã thanh toán, lọc đúng trạng thái, đơn đến trước xếp trước', async () => {
+      const t = await register('quay@test.vn');
+      const staff = await staffLogin();
+      const unpaid = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      const first = await newPaidOrder(t);
+      const second = await newPaidOrder(t);
+      await http().patch(`/orders/${second.id}/status`).set(auth(staff)).send({ status: 'PREPARING' }).expect(200);
+
+      const all = (await http().get('/staff/orders').set(auth(staff)).expect(200)).body;
+      const ids = all.map((o: any) => o.id);
+      expect(ids).not.toContain(unpaid.id);
+      expect(ids.indexOf(first.id)).toBeGreaterThanOrEqual(0);
+      expect(ids.indexOf(first.id)).toBeLessThan(ids.indexOf(second.id));
+      expect(all.every((o: any) => ['PAID', 'PREPARING', 'READY', 'COMPLETED'].includes(o.status))).toBe(true);
+      const row = all.find((o: any) => o.id === first.id);
+      expect(row).toMatchObject({ status: 'PAID', user: { fullName: 'Khách quay@test.vn' }, items: [expect.objectContaining({ quantity: 1 })] });
+      expect(row).not.toHaveProperty('ingredientUsage');
+
+      const preparing = (await http().get('/staff/orders?status=PREPARING').set(auth(staff)).expect(200)).body;
+      expect(preparing.map((o: any) => o.id)).toContain(second.id);
+      expect(preparing.every((o: any) => o.status === 'PREPARING')).toBe(true);
+    });
+  });
+
+  describe('Lịch sử trạng thái đơn: ai đổi, lúc nào (FR-34)', () => {
+    it('ghi đủ từng lần đổi; nhân viên thấy người thực hiện, khách chỉ thấy các mốc', async () => {
+      const t = await register('lichsu@test.vn');
+      const staff = await staffLogin();
+      const order = await newPaidOrder(t);
+      for (const s of ['PREPARING', 'READY', 'COMPLETED'])
+        await http().patch(`/orders/${order.id}/status`).set(auth(staff)).send({ status: s }).expect(200);
+
+      const seen = (await http().get(`/orders/${order.id}`).set(auth(staff)).expect(200)).body.statusHistory;
+      expect(seen.map((h: any) => [h.fromStatus, h.toStatus, h.reason])).toEqual([
+        [null, 'PENDING_PAYMENT', 'ORDER_CREATED'],
+        ['PENDING_PAYMENT', 'PAID', 'PAYMENT_SUCCESS'],
+        ['PAID', 'PREPARING', 'STAFF_UPDATE'],
+        ['PREPARING', 'READY', 'STAFF_UPDATE'],
+        ['READY', 'COMPLETED', 'STAFF_UPDATE'],
+      ]);
+      expect(seen[0].changedBy).toMatchObject({ fullName: 'Khách lichsu@test.vn', role: 'CUSTOMER' });
+      expect(seen.slice(2).every((h: any) => h.changedBy.role === 'STAFF')).toBe(true);
+      const times = seen.map((h: any) => new Date(h.changedAt).getTime());
+      expect(times).toEqual([...times].sort((a, b) => a - b));
+
+      const mine = (await http().get(`/orders/${order.id}`).set(auth(t)).expect(200)).body.statusHistory;
+      expect(mine).toHaveLength(5);
+      expect(mine[2]).toMatchObject({ toStatus: 'PREPARING', reason: 'STAFF_UPDATE' });
+      expect(mine[2]).not.toHaveProperty('changedBy');
+    });
+
+    it('đổi sai thứ tự không ghi lịch sử; khách hủy đơn ghi CUSTOMER_CANCEL; IPN VNPay ghi người đổi là hệ thống', async () => {
+      const t = await register('lichsu2@test.vn');
+      const staff = await staffLogin();
+      const unpaid = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      await http().patch(`/orders/${unpaid.id}/status`).set(auth(staff)).send({ status: 'PREPARING' }).expect(400);
+      await http().post(`/orders/${unpaid.id}/cancel`).set(auth(t)).expect(201);
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: 'lichsu2@test.vn' } });
+      expect(await prisma.orderStatusHistory.findMany({ where: { orderId: unpaid.id }, orderBy: { id: 'asc' }, select: { toStatus: true, reason: true, changedById: true } })).toEqual([
+        { toStatus: 'PENDING_PAYMENT', reason: 'ORDER_CREATED', changedById: user.id },
+        { toStatus: 'CANCELLED', reason: 'CUSTOMER_CANCEL', changedById: user.id },
+      ]);
+
+      const viaVnpay = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      await pay(t, viaVnpay.id);
+      await http().get('/payments/vnpay/ipn').query(vnp(await txnRefOf(viaVnpay.id), viaVnpay.totalAmount)).expect(200);
+      const last = await prisma.orderStatusHistory.findFirstOrThrow({ where: { orderId: viaVnpay.id }, orderBy: { id: 'desc' } });
+      expect(last).toMatchObject({ fromStatus: 'PENDING_PAYMENT', toStatus: 'PAID', reason: 'PAYMENT_SUCCESS', changedById: null });
+    });
+  });
+
+  describe('Tự hủy đơn chưa thanh toán quá hạn (FR-22)', () => {
+    const expiryService = async () => app.get((await import('../src/orders/order-expiry.service')).OrderExpiryService);
+
+    it('quá 15 phút: hủy đơn, hoàn kho đúng 1 lần, ghi AUTO_EXPIRED; đơn còn hạn, đã thanh toán, có link VNPay còn hiệu lực thì giữ nguyên', async () => {
+      const expiry = await expiryService();
+      expect(expiry.timeoutMinutes).toBe(15);
+      const t = await register('quahan@test.vn');
+      const fresh = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      const paid = await newPaidOrder(t);
+      const withLink = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      await pay(t, withLink.id); // vừa mở link VNPay, giao dịch còn PENDING
+
+      const stockBefore = await allStock();
+      const overdue = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      const failed = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      const card = { number: '4000000000000002', expiry: '12/30', cvv: '123' };
+      await http().post('/payments').set(auth(t)).set(key()).send({ orderId: failed.id, method: 'CARD', card }).expect(200);
+      for (const o of [overdue, failed, paid, withLink]) await prisma.order.update({ where: { id: o.id }, data: { createdAt: minutesAgo(20) } });
+
+      const cancelled = await expiry.expireOverdue();
+      expect(cancelled).toEqual([overdue.id, failed.id]);
+      expect(await allStock()).toEqual(stockBefore); // hoàn đủ kho của 2 đơn bị hủy
+      const statusOf = async (id: number) => (await prisma.order.findUniqueOrThrow({ where: { id } })).status;
+      expect(await statusOf(overdue.id)).toBe('CANCELLED');
+      expect(await statusOf(failed.id)).toBe('CANCELLED');
+      expect(await statusOf(fresh.id)).toBe('PENDING_PAYMENT');
+      expect(await statusOf(paid.id)).toBe('PAID');
+      expect(await statusOf(withLink.id)).toBe('PENDING_PAYMENT');
+      expect(await prisma.orderStatusHistory.findFirstOrThrow({ where: { orderId: failed.id }, orderBy: { id: 'desc' } })).toMatchObject({
+        fromStatus: 'PAYMENT_FAILED', toStatus: 'CANCELLED', reason: 'AUTO_EXPIRED', changedById: null,
+      });
+
+      expect(await expiry.expireOverdue()).toEqual([]); // quét lại không hủy/hoàn kho lần hai
+      expect(await allStock()).toEqual(stockBefore);
+      await http().post('/payments').set(auth(t)).set(key()).send({ orderId: overdue.id, method: 'WALLET' }).expect(409);
+    });
+
+    it('thời hạn rút ngắn còn 1 phút qua cấu hình ORDER_PAYMENT_TIMEOUT_MINUTES', async () => {
+      const { OrderExpiryService } = await import('../src/orders/order-expiry.service');
+      const { OrdersService } = await import('../src/orders/orders.service');
+      const settings: Record<string, string> = { ORDER_PAYMENT_TIMEOUT_MINUTES: '1', ORDER_EXPIRY_CHECK_INTERVAL_SECONDS: '0' };
+      const short = new OrderExpiryService(prisma, app.get(OrdersService), { get: (k: string) => settings[k] } as any);
+      expect(short.timeoutMinutes).toBe(1);
+
+      const t = await register('quahan-1phut@test.vn');
+      const old = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      const recent = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      await prisma.order.update({ where: { id: old.id }, data: { createdAt: minutesAgo(2) } });
+
+      const cancelled = await short.expireOverdue();
+      expect(cancelled).toContain(old.id);
+      expect(cancelled).not.toContain(recent.id);
     });
   });
 });

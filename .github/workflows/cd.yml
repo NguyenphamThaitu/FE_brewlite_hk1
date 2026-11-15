@@ -1,0 +1,269 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+env:
+  RENDER_API_BASE: https://api.render.com
+
+jobs:
+  # 1) Lint và Test (cổng chất lượng) cho cả api và web
+  quality:
+    name: Lint và Test (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        app: [api, web]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install (cài thư viện)
+        run: npm ci
+
+      - name: Lint (kiểm tra lỗi code)
+        run: npm run lint
+
+      - name: Unit Test (chạy kiểm thử)
+        run: npm test
+
+      - name: Build (biên dịch thử)
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/brewlite
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+  # 2) Build ảnh Docker, gắn tag theo mã commit, đẩy lên GitHub Container Registry
+  build-push:
+    name: Build và đẩy ảnh (${{ matrix.app }})
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [api, web]
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Kiểm tra biến NEXT_PUBLIC_API_URL (cần cho ảnh web)
+        if: matrix.app == 'web'
+        env:
+          API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "Thiếu biến NEXT_PUBLIC_API_URL (Settings > Secrets and variables > Actions > Variables)."
+            exit 1
+          fi
+
+      - name: Xác định tên ảnh và tag
+        id: meta
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          SHORT="sha-${GITHUB_SHA::7}"
+          IMAGE="ghcr.io/${OWNER}/brewlite-${APP}"
+          TAGS="${IMAGE}:${SHORT}"$'\n'"${IMAGE}:latest"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAGS="${TAGS}"$'\n'"${IMAGE}:${GITHUB_REF_NAME}"
+          fi
+          {
+            echo "tags<<EOF"
+            echo "${TAGS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Sẽ đẩy các tag: ${TAGS}"
+
+      - name: Cài Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Đăng nhập GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build và đẩy ảnh
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/${{ matrix.app }}
+          file: apps/${{ matrix.app }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  # 3) Deploy lên Render, chờ Live, smoke test, đánh dấu ổn định, quay lui khi lỗi
+  deploy:
+    name: Deploy lên Render
+    needs: build-push
+    if: vars.CD_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      API_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+      WEB_HOOK: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
+    steps:
+      - name: Kiểm tra cấu hình bí mật và biến
+        run: |
+          missing=0
+          for name in API_HOOK WEB_HOOK RENDER_API_KEY API_URL WEB_URL; do
+            if [ -z "${!name}" ]; then echo "Thiếu cấu hình: $name"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Xác định tên ảnh và tag
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          {
+            echo "SHORT=sha-${GITHUB_SHA::7}"
+            echo "API_IMAGE=ghcr.io/${OWNER}/brewlite-api"
+            echo "WEB_IMAGE=ghcr.io/${OWNER}/brewlite-web"
+          } >> "$GITHUB_ENV"
+
+      - name: Cài Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Đăng nhập GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gửi lệnh deploy tới Render (kèm đúng tag ảnh vừa build)
+        id: trigger
+        run: |
+          set -euo pipefail
+          enc() { python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$1"; }
+          trigger() {
+            local name="$1" hook="$2" image="$3" code
+            code=$(curl -sS -o "/tmp/${name}.json" -w '%{http_code}' -X POST "${hook}&imgURL=$(enc "$image")")
+            echo "[${name}] Render trả về HTTP ${code}"
+            if [ "$code" != "200" ] && [ "$code" != "202" ]; then
+              echo "[${name}] Gửi lệnh deploy thất bại"
+              return 1
+            fi
+            jq -r '.deploy.id // empty' "/tmp/${name}.json" > "/tmp/${name}.id" 2>/dev/null || : > "/tmp/${name}.id"
+          }
+          trigger api "$API_HOOK" "${API_IMAGE}:${SHORT}"
+          trigger web "$WEB_HOOK" "${WEB_IMAGE}:${SHORT}"
+
+      - name: Chờ Render báo Live
+        id: wait
+        run: |
+          set -euo pipefail
+          wait_live() {
+            local name="$1" hook="$2" did sid st
+            sid=$(echo "$hook" | sed -E 's#.*/deploy/(srv-[A-Za-z0-9]+).*#\1#')
+            did=$(cat "/tmp/${name}.id")
+            if [ -z "$did" ]; then
+              echo "[${name}] Không có mã deploy (Render xếp hàng), chờ 120 giây"
+              sleep 120
+              return 0
+            fi
+            for i in $(seq 1 60); do
+              st=$(curl -sS -H "Authorization: Bearer ${RENDER_API_KEY}" -H "Accept: application/json" \
+                "${RENDER_API_BASE}/v1/services/${sid}/deploys/${did}" | jq -r '.status // "unknown"')
+              echo "[${name}] Trạng thái deploy: ${st}"
+              case "$st" in
+                live) return 0 ;;
+                build_failed|update_failed|pre_deploy_failed|canceled|deactivated) return 1 ;;
+              esac
+              sleep 15
+            done
+            echo "[${name}] Quá thời gian chờ"
+            return 1
+          }
+          wait_live api "$API_HOOK"
+          wait_live web "$WEB_HOOK"
+
+      - name: Smoke test trên production
+        id: smoke
+        run: |
+          set -euo pipefail
+          retry() {
+            local i
+            for i in $(seq 1 20); do
+              if "$@"; then return 0; fi
+              echo "Chưa đạt, thử lại lần ${i} sau 15 giây (dịch vụ miễn phí có thể đang khởi động lại)"
+              sleep 15
+            done
+            return 1
+          }
+          check_health() {
+            local body
+            body=$(curl -fsS -m 30 "${API_URL}/health") || return 1
+            echo "GET /health -> ${body}"
+            echo "$body" | jq -e '.status == "ok" and .db == "up"' > /dev/null
+          }
+          check_products() {
+            curl -fsS -m 30 -o /tmp/products.json "${API_URL}/products" && [ -s /tmp/products.json ]
+          }
+          check_web() {
+            curl -fsS -m 30 -o /dev/null "${WEB_URL}/"
+          }
+          retry check_health
+          retry check_products
+          retry check_web
+          echo "Smoke test đạt: web, API, cơ sở dữ liệu đều hoạt động"
+
+      - name: Đánh dấu phiên bản ổn định (stable)
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create -t "${API_IMAGE}:stable" "${API_IMAGE}:${SHORT}"
+          docker buildx imagetools create -t "${WEB_IMAGE}:stable" "${WEB_IMAGE}:${SHORT}"
+
+      - name: Quay lui về bản ổn định khi có lỗi
+        if: failure() && steps.trigger.conclusion != 'skipped'
+        run: |
+          set -uo pipefail
+          enc() { python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$1"; }
+          rollback() {
+            local name="$1" hook="$2" image="$3" code
+            if ! docker buildx imagetools inspect "${image}:stable" > /dev/null 2>&1; then
+              echo "[${name}] Chưa có bản stable để quay lui (đây là lần deploy đầu tiên)"
+              return 0
+            fi
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${hook}&imgURL=$(enc "${image}:stable")")
+            echo "[${name}] Quay lui về ${image}:stable, Render trả về HTTP ${code}"
+          }
+          rollback api "$API_HOOK" "$API_IMAGE"
+          rollback web "$WEB_HOOK" "$WEB_IMAGE"
+          echo "Pipeline dừng. Migration của Prisma chỉ tiến lên, không tự hoàn tác."
