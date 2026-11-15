@@ -64,7 +64,7 @@ export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) 
         </Link>
 
         {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 bg-[#F3ECE1] p-1.5 rounded-full border border-[#E6DBC9]">
+                <nav className="hidden md:flex items-center gap-1 bg-[#F3ECE1] p-1.5 rounded-full border border-[#E6DBC9]">
           <Link
             href="/#menu"
             className={`px-4 py-1.5 rounded-full text-xs transition ${
@@ -86,12 +86,8 @@ export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) 
             Về BrewLite
           </Link>
           <Link
-            href="/#order-history"
-            className={`px-4 py-1.5 rounded-full text-xs transition ${
-              activeTab === "history"
-                ? "bg-white text-[#E06D20] font-extrabold shadow-2xs"
-                : "font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60"
-            }`}
+            href="/orders"
+            className="px-4 py-1.5 rounded-full text-xs font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60 transition"
           >
             Lịch sử đơn hàng
           </Link>

@@ -7,8 +7,11 @@ import ProductCard from "@/components/ProductCard";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import CartDrawer from "@/components/CartDrawer";
 import OrderConfirmationModal from "@/components/OrderConfirmationModal";
-import { getStoredCart } from "@/utils/cart";
+
 import { fetchProducts } from "@/services/products";
+
+import { getStoredCart } from "@/utils/cart";
+
 import { Product } from "@/types/product";
 import { MOCK_PRODUCTS } from "@/data/mock-products";
 import {
@@ -570,6 +573,7 @@ export default function MenuPage() {
         items={getStoredCart()}
         totalAmount={getStoredCart().reduce((sum, item) => sum + item.totalPrice, 0)}
       />
+     
 
       {/* Toast Notification */}
       {toastMessage && (
