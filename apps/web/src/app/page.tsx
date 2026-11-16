@@ -32,7 +32,6 @@ export default function MenuPage() {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState<number>(0);
 
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
@@ -77,33 +76,16 @@ export default function MenuPage() {
     setRetryCount((prev) => prev + 1);
   };
 
-  // Dynamic category list derived from fetched products (FR-01, FR-02)
-  const categories = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of products) {
-      if (!map.has(p.categoryId)) {
-        map.set(p.categoryId, p.categoryName);
-      }
-    }
-    return [
-      { id: "all", name: "Tất cả đồ uống" },
-      ...Array.from(map.entries()).map(([id, name]) => ({ id, name })),
-    ];
-  }, [products]);
-
-  // Filter products by category and search query (FR-01, FR-05)
+  // Filter products by search query (FR-01, FR-05)
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchCategory =
-        selectedCategory === "all" || product.categoryId === selectedCategory;
-      const query = searchQuery.toLowerCase().trim();
-      const matchSearch =
-        !query ||
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return products;
+    return products.filter(
+      (product) =>
         product.name.toLowerCase().includes(query) ||
-        product.description.toLowerCase().includes(query);
-      return matchCategory && matchSearch;
-    });
-  }, [products, selectedCategory, searchQuery]);
+        product.description.toLowerCase().includes(query)
+    );
+  }, [products, searchQuery]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -379,11 +361,8 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* Filters & Search */}
+        {/* Search */}
         <MenuFilter
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
@@ -502,7 +481,6 @@ export default function MenuPage() {
             <button
               type="button"
               onClick={() => {
-                setSelectedCategory("all");
                 setSearchQuery("");
               }}
               className="px-7 py-3 min-h-[44px] rounded-full bg-[#E06D20] hover:bg-[#C85A12] text-white text-xs sm:text-sm font-extrabold shadow-md shadow-orange-950/15 transition active:scale-95"
