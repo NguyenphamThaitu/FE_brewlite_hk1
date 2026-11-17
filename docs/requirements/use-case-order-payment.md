@@ -1,174 +1,207 @@
-\# Detailed Use Case: Place Order and Make Payment
+
+
+# Đặc tả Use Case chi tiết: Đặt đơn và thanh toán
 
 
 
-\## 1. Use Case Information
+## 1. Thông tin Use Case
 
 
 
-| Item | Description |
-
+| Thuộc tính | Mô tả |
 |---|---|
+| Mã Use Case chi tiết | UC-01 |
+| Nhóm Use Case tương ứng trong SRS | UC-04 |
+| Tên Use Case | Đặt đơn và thanh toán |
+| Tác nhân chính | Khách hàng |
+| Tác nhân hỗ trợ | Payment Gateway (mô phỏng Ví/Thẻ) |
+| Mục tiêu | Cho phép khách hàng tạo đơn hàng và hoàn tất thanh toán thành công. |
+| Mức độ ưu tiên | Must Have |
 
-| Use Case ID | UC-01 |
 
-| Use Case Name | Place Order and Make Payment |
 
-| Primary Actor | Customer |
+## 2. Trigger
 
-| Supporting Actor | Payment Gateway |
 
-| Goal | Allow the customer to create an order and complete payment successfully. |
 
-| Priority | Must Have |
+Khách hàng đã đăng nhập chọn xác nhận đặt hàng và thanh toán từ giỏ hàng.
 
 
 
-\## 2. Preconditions
+## 3. Điều kiện tiên quyết
 
 
 
-\- The customer has successfully logged in.
+- Khách hàng đã đăng nhập thành công.
 
-\- The system is operating normally.
+- Hệ thống đang hoạt động bình thường.
 
-\- The customer has at least one product in the cart.
+- Giỏ hàng có ít nhất một sản phẩm.
 
 
 
-\## 3. Postconditions
+## 4. Hậu điều kiện
 
 
 
-\### Success
+### 4.1. Trường hợp thành công
 
-\- The order is saved in the database.
 
-\- The product inventory is updated.
 
-\- The payment is recorded as SUCCESS.
+- Đơn hàng được lưu vào cơ sở dữ liệu.
 
-\- The order status is updated to PAID.
+- Tồn kho của các sản phẩm được cập nhật.
 
-\- The customer receives order confirmation.
+- Thông tin tên và giá sản phẩm tại thời điểm đặt hàng được lưu trong đơn.
 
+- Giao dịch thanh toán được ghi nhận với trạng thái `SUCCESS`.
 
+- Trạng thái đơn hàng được cập nhật thành `PAID`.
 
-\### Failure
+- Giỏ hàng được làm rỗng.
 
-\- The payment is recorded as FAILED.
+- Khách hàng nhận được thông tin xác nhận đơn hàng.
 
-\- The order status is updated to PAYMENT\_FAILED.
 
-\- The customer's cart is retained.
 
-\- The customer can retry the payment.
+### 4.2. Trường hợp thất bại
 
 
 
-\## 4. Main Success Scenario
+- Giao dịch thanh toán được ghi nhận với trạng thái `FAILED`.
 
+- Trạng thái đơn hàng được cập nhật thành `PAYMENT_FAILED`.
 
+- Giỏ hàng của khách hàng được giữ lại.
 
-1\. The customer confirms the items in the cart.
+- Khách hàng có thể thử thanh toán lại.
 
-2\. The system validates the cart and checks product availability.
 
-3\. The system calculates the order total on the backend.
 
-4\. The system creates the order with status PENDING.
+## 5. Luồng sự kiện chính (Main Success Scenario)
 
-5\. The system deducts the ordered quantities from product inventory within a database transaction.
 
-6\. The customer selects a payment method (E\_WALLET or BANK\_CARD).
 
-7\. The customer confirms the payment.
+1. Khách hàng kiểm tra các sản phẩm trong giỏ hàng và xác nhận đặt hàng.
 
-8\. The system sends the payment request to the Payment Gateway.
+2. Hệ thống kiểm tra tính hợp lệ của giỏ hàng và tình trạng tồn kho của sản phẩm.
 
-9\. The Payment Gateway returns a successful payment result.
+3. Hệ thống tính tổng tiền đơn hàng ở phía backend.
 
-10\. The system records the payment status as SUCCESS.
+4. Hệ thống tạo đơn hàng với trạng thái `PENDING_PAYMENT` và lưu snapshot tên, giá sản phẩm tại thời điểm đặt hàng.
 
-11\. The system updates the order status to PAID.
+5. Hệ thống trừ số lượng tồn kho trong cùng một giao dịch cơ sở dữ liệu với thao tác tạo đơn hàng.
 
-12\. The system displays the order confirmation to the customer.
+6. Khách hàng chọn phương thức thanh toán (`WALLET` hoặc `CARD`).
 
+7. Khách hàng xác nhận thanh toán.
 
+8. Hệ thống gửi yêu cầu thanh toán đến Payment Gateway.
 
-\## 5. Alternative and Exception Flows
+9. Payment Gateway trả về kết quả thanh toán thành công.
 
+10. Hệ thống ghi nhận giao dịch thanh toán với trạng thái `SUCCESS`.
 
+11. Hệ thống cập nhật trạng thái đơn hàng thành `PAID`.
 
-\### A1. Cart is empty
+12. Hệ thống hiển thị thông tin xác nhận đơn hàng cho khách hàng và làm rỗng giỏ hàng.
 
-\- At step 1, the system detects that the cart is empty.
 
-\- The system displays an error message.
 
-\- The customer is asked to add products before placing an order.
+## 6. Luồng thay thế và ngoại lệ
 
 
 
-\### A2. Product is out of stock
+### A1. Giỏ hàng trống
 
-\- At step 2, the system detects insufficient stock.
 
-\- The system cancels the order creation transaction.
 
-\- The system displays an insufficient stock message.
+- Tại bước 1, hệ thống phát hiện giỏ hàng không có sản phẩm.
 
-\- The customer updates the cart.
+- Hệ thống hiển thị thông báo lỗi.
 
+- Khách hàng được yêu cầu thêm sản phẩm trước khi đặt hàng.
 
 
-\### A3. Payment fails
 
-\- At step 9, the Payment Gateway returns a failed result.
+### A2. Sản phẩm không đủ tồn kho
 
-\- The system records the payment status as FAILED.
 
-\- The system updates the order status to PAYMENT\_FAILED.
 
-\- The system informs the customer that payment failed.
+- Tại bước 2, hệ thống phát hiện số lượng tồn kho không đủ.
 
-\- The customer's cart is retained.
+- Hệ thống hủy toàn bộ giao dịch tạo đơn và cập nhật tồn kho.
 
-\- The customer can retry the payment.
+- Hệ thống hiển thị thông báo về tình trạng không đủ hàng.
 
+- Khách hàng cập nhật lại giỏ hàng.
 
 
-\### A4. Duplicate payment request
 
-\- The customer submits the same payment request again with the same Idempotency-Key.
+### A3. Thanh toán thất bại
 
-\- The system checks the Idempotency-Key.
 
-\- The system returns the previous payment result without processing another charge.
 
+- Tại bước 9, Payment Gateway trả về kết quả thanh toán thất bại.
 
+- Hệ thống ghi nhận giao dịch thanh toán với trạng thái `FAILED`.
 
-\## 6. Business Rules
+- Hệ thống cập nhật trạng thái đơn hàng thành `PAYMENT_FAILED`.
 
+- Hệ thống thông báo lý do thanh toán thất bại cho khách hàng.
 
+- Giỏ hàng của khách hàng được giữ lại.
 
-\- Only authenticated customers can place orders.
+- Khách hàng có thể thử thanh toán lại.
 
-\- The order total must be calculated by the backend.
 
-\- Customers can only pay for their own orders.
 
-\- Only orders with status PENDING or PAYMENT\_FAILED can be paid.
+### A4. Yêu cầu thanh toán bị gửi trùng
 
-\- The system must prevent duplicate payment processing through the Idempotency-Key.
 
 
+- Khách hàng gửi lại cùng một yêu cầu thanh toán với cùng `Idempotency-Key`.
 
-\## 7. Related Functional Requirements
+- Hệ thống kiểm tra `Idempotency-Key`.
 
+- Hệ thống trả về kết quả thanh toán trước đó mà không xử lý thêm một giao dịch thanh toán mới.
 
 
-\- FR-05: Create Order
 
-\- FR-06: Cashless Payment
+## 7. Quy tắc nghiệp vụ
 
+
+
+- Chỉ khách hàng đã xác thực mới được phép đặt đơn.
+
+- Tổng tiền đơn hàng phải được tính toán ở phía backend.
+
+- Khách hàng chỉ được thanh toán cho đơn hàng của chính mình.
+
+- Chỉ đơn hàng có trạng thái `PENDING_PAYMENT` hoặc `PAYMENT_FAILED` mới được phép thanh toán.
+
+- Hệ thống phải ngăn chặn việc xử lý thanh toán trùng lặp thông qua `Idempotency-Key`.
+
+
+
+## 8. Yêu cầu chức năng liên quan
+
+
+
+- FR-18: Yêu cầu đăng nhập khi đặt đơn.
+
+- FR-19: Tạo đơn hàng từ giỏ hàng.
+
+- FR-20: Kiểm tra và trừ tồn kho khi tạo đơn.
+
+- FR-21: Lưu snapshot giá và tên sản phẩm tại thời điểm đặt.
+
+- FR-24: Thanh toán bằng Ví mô phỏng.
+
+- FR-25: Thanh toán bằng Thẻ mô phỏng.
+
+- FR-26: Idempotency khi gửi lại yêu cầu thanh toán.
+
+- FR-27: Xử lý thanh toán thất bại và cho phép thử lại.
+
+- FR-29: Hiển thị xác nhận đơn sau khi thanh toán thành công.
