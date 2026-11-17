@@ -55,6 +55,8 @@ Vì vậy PR có lint, test hoặc build lỗi ở backend hoặc frontend thì 
 
 - Trạng thái merge của PR ngày 15/11/2026: `BLOCKED`. Check `api` đã pass nhưng PR vẫn không merge được
   vì check bắt buộc `web` thất bại.
+- Sau khi bài E2E được sửa cho khớp màn hình xác nhận mới, cả hai check xanh và PR #58 được merge ngày
+  16/11/2026.
 
 ## 3. Lần pipeline thành công
 

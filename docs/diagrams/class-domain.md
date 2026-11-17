@@ -77,4 +77,5 @@ trong code. Còn lại:
 |------|-----|-------------------|
 | Vai trò | `CUSTOMER`, `STAFF`, `ADMIN` (FR-17) | `CUSTOMER`, `STAFF`; `ADMIN` chỉ cần khi làm FR-35, FR-38 (Should/Could) |
 | Tồn kho | "tồn kho" theo sản phẩm (FR-03, FR-20) | Theo nguyên liệu × công thức × hệ số size (ADR-006) |
+| Thanh toán lại sau lỗi | `PAYMENT_FAILED → PENDING_PAYMENT` rồi mới thanh toán lại (mục 2.2) | Thanh toán lại đi thẳng `PAYMENT_FAILED → PAID`; khách hủy được cả đơn `PAYMENT_FAILED` (ADR-008) |
 | Cổng thanh toán thật | Ngoài phạm vi (FR-39) | Có thêm VNPay sandbox, không bắt buộc cấu hình (ADR-008) |
