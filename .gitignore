@@ -1,20 +1,36 @@
-# Dependencies
+# =========================================================
+# Dependencies và package-manager artifacts
+# =========================================================
 **/node_modules/
 .pnp
 .pnp.*
+**/.npm/
+**/.pnpm-store/
 
-# Build output
+# =========================================================
+# Build output và framework cache
+# =========================================================
 **/.next/
 **/out/
 **/dist/
 **/build/
-**/coverage/
 **/.turbo/
 **/.vercel/
+**/.cache/
+**/.eslintcache
+
+# =========================================================
+# Test output và coverage
+# =========================================================
+**/coverage/
+**/.nyc_output/
 **/test-results/
 **/playwright-report/
 
-# Environment files and secrets
+# =========================================================
+# Environment files, credentials và local overrides
+# Chỉ giữ lại các file mẫu .env.example trong Git.
+# =========================================================
 .env
 .env.*
 **/.env
@@ -23,20 +39,35 @@
 !.env.*.example
 !**/.env.example
 !**/.env.*.example
+.envrc
+**/.direnv/
 
-# Logs
+# =========================================================
+# Logs và temporary files
+# =========================================================
+*.log
+*.log.*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-*.log
+*.tmp
+*.temp
+*.orig
+*.rej
+*.bak*
 
+# =========================================================
 # TypeScript / generated files
+# =========================================================
 *.tsbuildinfo
 
-# Editor and operating system files
+# =========================================================
+# Editor và hệ điều hành
+# =========================================================
 .DS_Store
 Thumbs.db
+Desktop.ini
 .idea/
 .vscode/
 *.swp
