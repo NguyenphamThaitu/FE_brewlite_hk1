@@ -407,6 +407,14 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       expect((await http().get('/orders').set(auth(staff))).body.length).toBeGreaterThan(1); // nhân viên thấy tất cả
       await http().get('/orders/99999').set(auth(t)).expect(404);
     });
+
+    it('GET /orders?status=…: lọc đúng trạng thái; status ngoài danh sách → 400', async () => {
+      const staff = (await http().post('/auth/login').send({ email: 'staff@brewlite.local', password: 'Staff@123' }).expect(200)).body.accessToken;
+      const completed = (await http().get('/orders?status=COMPLETED').set(auth(staff)).expect(200)).body;
+      expect(completed.length).toBeGreaterThan(0);
+      expect(completed.every((o: any) => o.status === 'COMPLETED')).toBe(true);
+      for (const bad of ['abc', 'completed']) await http().get(`/orders?status=${bad}`).set(auth(staff)).expect(400);
+    });
   });
 
   describe('Thanh toán Ví/Thẻ mô phỏng (FR-24, FR-25, FR-26, FR-27)', () => {

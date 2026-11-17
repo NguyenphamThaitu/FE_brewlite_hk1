@@ -17,6 +17,11 @@ export class StaffOrdersQueryDto {
   @IsOptional() @IsIn(STAFF_VISIBLE, { message: `status phải là một trong: ${STAFF_VISIBLE.join(', ')}` }) status?: OrderStatus;
 }
 
+/** GET /orders?status=… – bỏ trống thì trả mọi trạng thái; giá trị lạ trả 400 thay vì lỗi 500 từ Prisma */
+export class OrdersQueryDto {
+  @IsOptional() @IsIn(Object.values(OrderStatus), { message: `status phải là một trong: ${Object.values(OrderStatus).join(', ')}` }) status?: OrderStatus;
+}
+
 export class UpdateStatusDto {
   @IsIn([OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED], { message: 'Trạng thái không hợp lệ' })
   status: OrderStatus;
