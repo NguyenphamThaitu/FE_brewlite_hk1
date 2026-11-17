@@ -1,6 +1,6 @@
 # Class diagram mức domain – BrewLite
 
-> Task 2.3 · Người thực hiện: Quách Văn Trường · Reviewer: Trần Minh Trí
+> Task 2.3 · Người thực hiện: Quách Văn Trường · Reviewer: Hữu Mẫn (Minh Trí và Hữu Mẫn đổi việc cho nhau từ Task 2)
 > Nguồn: [`class-domain.puml`](class-domain.puml) · Kết xuất: [`class-domain.svg`](class-domain.svg)
 > Bám theo mô hình dữ liệu [`apps/api/prisma/schema.prisma`](../../apps/api/prisma/schema.prisma) (gồm thay đổi ở PR #16)
 > và mã yêu cầu trong [`srs.md`](../requirements/srs.md) (PR #15)
