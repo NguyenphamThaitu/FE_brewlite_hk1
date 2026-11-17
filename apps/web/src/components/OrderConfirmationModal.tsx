@@ -193,19 +193,7 @@ const handleConfirmOrder = async () => {
     return;
   }
 
-  if (paymentMethod === "CARD") {
-    const [month, year] = cardExpiry.split("/").map(Number);
-    const expiryDate = new Date(2000 + year, month, 1);
-    const currentMonth = new Date();
-    currentMonth.setDate(1);
-    currentMonth.setHours(0, 0, 0, 0);
-
-    if (expiryDate <= currentMonth) {
-      setErrorMessage("Thẻ đã hết hạn.");
-      return;
-    }
-  }
-
+  // Thẻ mô phỏng: chỉ số thẻ quyết định kết quả, hạn thẻ (đúng dạng MM/YY) và CVV không cần còn hiệu lực.
   if (paymentMethod === "CARD" && !/^\d{3}$/.test(cardCvv)) {
     setErrorMessage("CVV phải gồm đúng 3 chữ số.");
     return;
@@ -337,7 +325,9 @@ setSuccessMessage(payment.message);
           payment.errorCode === "WALLET_INSUFFICIENT_BALANCE" &&
             typeof balanceAfter === "number"
             ? walletShortMessage(balanceAfter, payment.amount)
-            : payment.message || "Thanh toán thất bại. Vui lòng thử lại.",
+            : payment.method === "CARD"
+              ? `Thanh toán thẻ thất bại: ${payment.message || "giao dịch không thành công"}. Vui lòng dùng thẻ test thành công hoặc thanh toán bằng ví.`
+              : payment.message || "Thanh toán thất bại. Vui lòng thử lại.",
         );
       }
     } catch (error) {
@@ -639,7 +629,7 @@ setSuccessMessage(payment.message);
                   <p>Thẻ test thành công: 4111111111111111</p>
                   <p>Thẻ test bị từ chối: 4000000000000002</p>
                   <p>Thẻ test không đủ tiền: 4000000000009995</p>
-                  <p>Hạn thẻ phải còn hiệu lực. CVV có thể nhập 3 chữ số bất kỳ.</p>
+                  <p>Hạn thẻ nhập tháng/năm bất kỳ (MM/YY), CVV nhập 3 chữ số bất kỳ: chỉ số thẻ quyết định kết quả.</p>
                 </div>
               </div>
             )}

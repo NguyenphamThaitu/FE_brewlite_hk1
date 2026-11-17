@@ -26,7 +26,9 @@ ADR-005 chọn VNPay sandbox làm cổng thanh toán duy nhất. SRS đã chốt
   - Ví: mỗi `User` có `walletBalance` (mặc định 1.000.000đ; trước 17/11/2026 là 200.000đ). Đủ tiền thì trừ ví; thiếu thì
     `FAILED`, mã `WALLET_INSUFFICIENT_BALANCE`.
   - Thẻ: kết quả theo số thẻ test cố định (`4111111111111111`, `5555555555554444` thành công;
-    `4000000000000002` bị từ chối; `4000000000009995` không đủ số dư; thẻ hết hạn bị từ chối).
+    `4000000000000002` bị từ chối; `4000000000009995` không đủ số dư; số thẻ khác bị từ chối).
+    Từ 17/11/2026 chỉ số thẻ quyết định kết quả: hạn thẻ (đúng dạng MM/YY) và CVV (3 số) không cần còn
+    hiệu lực, để demo nhập hạn thẻ nào cũng được; trước đó thẻ hết hạn bị từ chối (`CARD_EXPIRED`).
     Chỉ lưu 4 số cuối (`Payment.cardLast4`), không lưu số thẻ đầy đủ, hạn thẻ hay CVV.
 - **Chống trùng bằng header `Idempotency-Key`** (bắt buộc, 8–100 ký tự) cho cả `POST /payments` và
   `POST /payments/vnpay`:
@@ -48,7 +50,8 @@ ADR-005 chọn VNPay sandbox làm cổng thanh toán duy nhất. SRS đã chốt
 - Đáp ứng đúng chữ "thanh toán Ví/Thẻ mô phỏng" của đề và FR-24 → FR-27; demo và test không cần
   mạng hay tài khoản merchant.
 - Integration test (`apps/api/test/flow.int-spec.ts`) kiểm tra: ví đủ/thiếu tiền, gửi lặp cùng key
-  không trừ tiền lần hai, thẻ bị từ chối/hết hạn, DB không chứa số thẻ đầy đủ, thanh toán lại sau lỗi.
+  không trừ tiền lần hai, thẻ bị từ chối/không đủ số dư, hạn thẻ bất kỳ không ảnh hưởng kết quả,
+  DB không chứa số thẻ đầy đủ, thanh toán lại sau lỗi.
 - Frontend phải sinh một `Idempotency-Key` mới cho mỗi lần bấm "Thanh toán" (ví dụ
   `crypto.randomUUID()`) và gửi lại y nguyên khi retry do lỗi mạng.
 - Thêm migration `20261111090000_wallet_card_payment` (`User.walletBalance`, `Payment.cardLast4`).

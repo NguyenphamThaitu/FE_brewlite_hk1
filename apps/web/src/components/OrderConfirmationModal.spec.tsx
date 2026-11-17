@@ -224,3 +224,54 @@ describe("OrderConfirmationModal: ví mô phỏng (FR-24)", () => {
     expect(screen.getByTestId("confirm-order-submit")).not.toBeDisabled();
   });
 });
+
+describe("OrderConfirmationModal: thẻ mô phỏng (FR-25)", () => {
+  const fillCard = (number: string, expiry: string, cvv = "123") => {
+    fireEvent.click(screen.getByText("Thẻ ngân hàng"));
+    fireEvent.change(screen.getByTestId("payment-card-number"), { target: { value: number } });
+    fireEvent.change(screen.getByTestId("payment-card-expiry"), { target: { value: expiry } });
+    fireEvent.change(screen.getByTestId("payment-card-cvv"), { target: { value: cvv } });
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    saveCart(items);
+    vi.mocked(createOrder).mockReset();
+    vi.mocked(createMockPayment).mockReset();
+    vi.mocked(createOrder).mockResolvedValue({ id: 123, totalAmount: 70000, status: "PENDING_PAYMENT" });
+    saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 1000000 } });
+  });
+
+  it("hạn thẻ bất kỳ (kể cả đã qua) không chặn thanh toán: thẻ test đúng thì thành công", async () => {
+    vi.mocked(createMockPayment).mockResolvedValue({
+      paymentId: 7, orderId: 123, method: "CARD", amount: 70000,
+      paymentStatus: "SUCCESS", orderStatus: "PAID", errorCode: null,
+      message: "Thanh toán thành công", cardLast4: "1111",
+    });
+    renderModal();
+
+    fillCard("4111111111111111", "1112");
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+
+    expect(await screen.findByTestId("order-success-title")).toBeInTheDocument();
+    expect(createMockPayment).toHaveBeenCalledWith(123, "CARD", expect.any(String), {
+      number: "4111111111111111", expiry: "11/12", cvv: "123",
+    });
+  });
+
+  it("thẻ test bị từ chối: hiện lý do thất bại, giữ giỏ hàng để thanh toán lại", async () => {
+    vi.mocked(createMockPayment).mockResolvedValue({
+      paymentId: 8, orderId: 123, method: "CARD", amount: 70000,
+      paymentStatus: "FAILED", orderStatus: "PAYMENT_FAILED", errorCode: "CARD_DECLINED",
+      message: "Ngân hàng phát hành thẻ từ chối giao dịch", cardLast4: "0002",
+    });
+    renderModal();
+
+    fillCard("4000000000000002", "1230");
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Thanh toán thẻ thất bại: Ngân hàng phát hành thẻ từ chối giao dịch/);
+    expect(getStoredCart()).toHaveLength(1);
+  });
+});

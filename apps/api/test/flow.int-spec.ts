@@ -452,18 +452,22 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       expect(await prisma.payment.count({ where: { orderId: order.id } })).toBe(2);
     });
 
-    it('thẻ bị từ chối / hết hạn; DB chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ hay CVV', async () => {
+    it('thẻ bị từ chối / không đủ số dư kèm lý do; hạn thẻ bất kỳ không ảnh hưởng; DB chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ hay CVV', async () => {
       const t = await register('card@test.vn');
       const order = await newOrder(t);
       const declined = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, number: '4000000000000002' } }).expect(200)).body;
-      expect(declined).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_DECLINED', orderStatus: 'PAYMENT_FAILED', cardLast4: '0002' });
-      const expired = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, expiry: '01/20' } }).expect(200)).body;
-      expect(expired).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_EXPIRED' });
+      expect(declined).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_DECLINED', orderStatus: 'PAYMENT_FAILED', cardLast4: '0002', message: 'Ngân hàng phát hành thẻ từ chối giao dịch' });
+      const noFunds = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, number: '4000000000009995' } }).expect(200)).body;
+      expect(noFunds).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_INSUFFICIENT_FUNDS', cardLast4: '9995' });
+      // Hạn thẻ đã qua (11/2012) nhưng số thẻ test đúng → vẫn thanh toán thành công
+      const paid = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, expiry: '11/12' } }).expect(200)).body;
+      expect(paid).toMatchObject({ paymentStatus: 'SUCCESS', orderStatus: 'PAID', cardLast4: '1111' });
 
       const rows = await prisma.$queryRawUnsafe<{ j: string }[]>('SELECT row_to_json(p)::text AS j FROM "Payment" p WHERE "orderId" = $1', order.id);
-      expect(rows).toHaveLength(2);
+      expect(rows).toHaveLength(3);
       for (const r of rows) {
         expect(r.j).not.toContain('4000000000000002');
+        expect(r.j).not.toContain('4000000000009995');
         expect(r.j).not.toContain('4111111111111111');
         expect(r.j).not.toContain('"987"');
       }
