@@ -42,7 +42,7 @@ class User {
   + passwordHash : String
   + fullName : String
   + role : Role
-  + walletBalance : Int = 200000
+  + walletBalance : Int = 1000000
   + createdAt : DateTime
 }
 
