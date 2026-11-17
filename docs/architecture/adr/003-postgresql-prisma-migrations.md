@@ -15,7 +15,8 @@ production (NFR-19).
 - ORM: **Prisma** (client `engineType = "client"` với `@prisma/adapter-pg`). Schema ở
   `apps/api/prisma/schema.prisma`.
 - Thay đổi schema: `prisma migrate dev --name <tên>` ở local, commit thư mục
-  `apps/api/prisma/migrations` (hiện có `init` và `drop_cart_item`).
+  `apps/api/prisma/migrations` (hiện có 6 migration: `init`, `drop_cart_item`,
+  `payment_failed_idempotency_key`, `wallet_card_payment`, `order_status_history`, `wallet_default_1m`).
 - Production và docker-compose: container API chạy `npx prisma migrate deploy` trước
   `node dist/main.js` (`apps/api/Dockerfile`). Lệnh này chỉ áp dụng migration đã commit, không sinh
   migration mới, không reset dữ liệu.
@@ -23,7 +24,7 @@ production (NFR-19).
   Hàm chỉ chạy khi bảng `Product` còn trống nên chạy lại không nhân đôi dữ liệu. Dữ liệu mẫu gồm
   nguyên liệu, công thức, 5 đồ uống, size S/M/L, 3 topping và 1 tài khoản `STAFF`.
 - Tiền tệ lưu bằng số nguyên VNĐ (`Int`); lượng nguyên liệu dùng `Decimal(12,2)`.
-- Ràng buộc đặt ở database: `@unique` cho `User.email`, `Payment.txnRef`; khóa ngoại kèm
+- Ràng buộc đặt ở database: `@unique` cho `User.email`, `Payment.txnRef`, `Payment.idempotencyKey`; khóa ngoại kèm
   `onDelete: Cascade` cho `OrderItem`, `Payment`, `ProductIngredient`.
 
 ## Hệ quả

@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-> Task 3.1 · Người thực hiện: Quách Văn Trường (trừ ADR-002) · Reviewer: Nguyễn Phạm Thái Tú
+> Task 3.1 · Người thực hiện: Quách Văn Trường (ADR-001, ADR-003 → ADR-010; ADR-002 do Thái Tú viết) · Reviewer: Nguyễn Phạm Thái Tú
 
 Mỗi quyết định kiến trúc quan trọng được ghi thành một ADR ngắn. Không sửa nội dung quyết định
 của ADR đã `Accepted`; khi đổi quyết định, tạo ADR mới và đánh dấu ADR cũ là `Superseded by ADR-xxx`.
@@ -20,6 +20,18 @@ của ADR đã `Accepted`; khi đổi quyết định, tạo ADR mới và đán
 
 Các ADR mô tả quyết định **đã hiện thực trong code** (ADR-001 → 010), kể cả phần CD của ADR-007
 (pipeline `cd.yml` do Thái Tú dựng ở PR #57). ADR-002 do Thái Tú viết (đã merge ở PR #8).
+
+## Tài liệu khác trong thư mục này
+
+Các tệp sau nằm cùng thư mục nhưng không thuộc danh sách ADR ở trên (không theo mẫu ADR; hai tệp trùng số
+thứ tự với ADR-009, ADR-010):
+
+| Tệp | Nội dung | Người viết |
+|-----|----------|------------|
+| [`009-adr-render-deployment.md`](009-adr-render-deployment.md) | Nền tảng triển khai production trên Render (cùng chủ đề ADR-002) | Tuấn Vỹ |
+| [`010-architecture-overview.md`](010-architecture-overview.md) | Tổng quan kiến trúc | Tuấn Vỹ |
+| [`011-deployment-traceability.md`](011-deployment-traceability.md) | Ma trận truy vết triển khai (Task 3.2) | Tuấn Vỹ |
+| [`architectural-approaches.md`](architectural-approaches.md) | Mô tả kiến trúc backend, dữ liệu, thanh toán, vận hành (Task 3.1) | Hữu Mẫn |
 
 ## Mẫu ADR
 

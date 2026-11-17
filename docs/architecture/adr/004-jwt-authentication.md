@@ -18,8 +18,12 @@ chạy được nhiều instance mà không chia sẻ session.
   (userId), `email`, `role`.
 - Mật khẩu băm bằng **bcrypt** (`bcryptjs`, cost 10); không bao giờ trả `passwordHash`. Email chuẩn
   hóa về chữ thường.
-- `@nestjs/passport` + `passport-jwt`: `JwtAuthGuard` bảo vệ `/orders`, `POST /payments/vnpay`,
-  `/auth/me`. `RolesGuard` + `@Roles(Role.STAFF)` bảo vệ `PATCH /orders/:id/status`.
+- `@nestjs/passport` + `passport-jwt`: `JwtAuthGuard` bảo vệ mọi route `/orders` (gồm `GET /orders/me`,
+  `GET /orders/:id`, `POST /orders/:id/cancel`), `POST /payments`, `POST /payments/vnpay`, `GET /auth/me`
+  và `GET /staff/orders`. `RolesGuard` + `@Roles(Role.STAFF)` bảo vệ `GET /staff/orders` và
+  `PATCH /orders/:id/status`. Không cần JWT: `POST /auth/register`, `POST /auth/login`, `GET /products`,
+  `GET /products/:id`, `GET /health` và hai callback VNPay `/payments/vnpay/ipn`, `/payments/vnpay/return`
+  (kiểm tra bằng chữ ký HMAC thay cho JWT).
 - `userId` luôn lấy từ token, không lấy từ body. Khách chỉ xem/hủy đơn của mình (403 nếu không phải
   chủ đơn) và chỉ tạo thanh toán cho đơn của mình (404, không tiết lộ đơn tồn tại); `STAFF` xem được
   mọi đơn.
