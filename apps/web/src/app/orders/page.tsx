@@ -220,8 +220,16 @@ export default function OrdersPage() {
                 </span>
               </div>
 
-              {CANCELLABLE_STATUSES.includes(order.status) && (
-                <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex flex-wrap justify-end gap-3">
+                <Link
+                  href={`/orders/${order.id}`}
+                  data-testid={`track-order-${order.id}`}
+                  className="rounded-full bg-amber-800 px-4 py-2 text-xs font-bold text-white transition hover:bg-amber-900"
+                >
+                  Theo dõi đơn
+                </Link>
+
+                {CANCELLABLE_STATUSES.includes(order.status) && (
                   <button
                     type="button"
                     onClick={() => handleCancel(order.id)}
@@ -231,8 +239,8 @@ export default function OrdersPage() {
                   >
                     {cancellingId === order.id ? "Đang hủy..." : "Hủy đơn"}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </section>
           ))}
         </div>

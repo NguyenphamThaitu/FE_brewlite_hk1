@@ -681,6 +681,16 @@ const handleConfirmOrder = async () => {
       Đã tiếp nhận (Chờ pha chế)
     </p>
 
+    {successOrderId && (
+      <Link
+        href={`/orders/${successOrderId}`}
+        data-testid="track-order-link"
+        className="block text-sm font-bold text-[#E06D20] underline"
+      >
+        Theo dõi đơn hàng →
+      </Link>
+    )}
+
     <p className="text-sm text-[#4A3528]">
       Hình thức nhận món: {pickupNote}
     </p>
