@@ -83,8 +83,8 @@ else JWT valid
                     group Update successful payment
                         API -> DB: BEGIN TRANSACTION
                         activate DB
-                        API -> DB: Update Payment = PAID
-                        API -> DB: Update Order = CONFIRMED
+                        API -> DB: Update Payment = SUCCESS
+                        API -> DB: Update Order =  PAID
                         API -> DB: COMMIT
                         DB --> API: Update successful
                         deactivate DB
