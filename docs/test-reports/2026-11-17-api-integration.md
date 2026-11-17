@@ -5,11 +5,12 @@ Minh chứng cho cột *Trạng thái / minh chứng* của [`traceability-matri
 | Mục | Giá trị |
 |---|---|
 | Ngày chạy | 17/11/2026 |
-| Commit | `e093618` trên `main` (sau khi merge PR #72, #73, #74) |
+| Commit | `ff1f09e` trên `main` (sau khi merge PR #77: ví 1.000.000đ, thẻ mô phỏng chỉ xét số thẻ; đã có trang theo dõi đơn của PR #80) |
 | Người chạy | Quách Văn Trường |
 | Lệnh | `npm run test:int` trong `apps/api` (Jest project `integration`, chạy tuần tự) |
 | Môi trường | Node.js 24.16.0, PostgreSQL 18.6 trên máy cá nhân; database trống tạo riêng cho lần chạy |
-| Kết quả | **44/44 test pass**, 1 test suite, 15,1 giây |
+| Kết quả | **44/44 test pass**, 1 test suite, 12,3 giây |
+| Lần chạy trước | Commit `e093618` (trước PR #77): 44/44 pass |
 
 CI chưa chạy test tích hợp vì cần PostgreSQL (xem [`ci-evidence.md`](../ci-evidence.md), mục 7), nên báo cáo này là minh chứng chạy tay.
 
@@ -35,7 +36,7 @@ Tất cả test nằm trong [`apps/api/test/flow.int-spec.ts`](../../apps/api/te
 | INT-03 | Sản phẩm | chi tiết món có size và topping | FR-06 | Pass |
 | INT-04 | Sản phẩm | 404 khi không có / 400 khi id sai | FR-06 | Pass |
 | INT-05 | Xác thực | validate dữ liệu đăng ký | FR-14 | Pass |
-| INT-06 | Xác thực | đăng ký, trùng email, đăng nhập, /me | FR-14, FR-15 | Pass |
+| INT-06 | Xác thực | đăng ký, trùng email, đăng nhập, /me; tài khoản mới có ví 1.000.000đ | FR-14, FR-15, FR-24 | Pass |
 | INT-07 | Xác thực | chưa đăng nhập / token sai bị chặn (`POST /orders`, `GET /orders` → 401) | FR-19, NFR-05 | Pass |
 | INT-08 | Validate đơn | giỏ rỗng / thiếu items → 400 | FR-19 | Pass |
 | INT-09 | Validate đơn | số lượng, size, topping, món không hợp lệ | FR-19, NFR-06 | Pass |
@@ -64,9 +65,9 @@ Tất cả test nằm trong [`apps/api/test/flow.int-spec.ts`](../../apps/api/te
 | INT-32 | Lịch sử đơn | chỉ trả đơn của chính mình, mới nhất trước, kèm danh sách món | FR-30, FR-17 | Pass |
 | INT-33 | Trạng thái đơn | nhân viên đẩy trạng thái đúng thứ tự, khách không được, `GET /orders/:id` của người khác → 403 | FR-34, FR-31, FR-17 | Pass |
 | INT-34 | Trạng thái đơn | `GET /orders?status=…` lọc đúng trạng thái; status ngoài danh sách → 400 | NFR-06 | Pass |
-| INT-35 | Ví/Thẻ mô phỏng | ví đủ tiền: đơn PAID, trừ đúng số dư; gửi lặp cùng key không trừ tiền lần hai | FR-24, FR-26 | Pass |
+| INT-35 | Ví/Thẻ mô phỏng | ví đủ tiền: đơn PAID, trừ đúng số dư, `GET /auth/me` trả đúng số dư mới; gửi lặp cùng key không trừ tiền lần hai | FR-24, FR-26 | Pass |
 | INT-36 | Ví/Thẻ mô phỏng | ví không đủ: Payment FAILED kèm mã lỗi, đơn PAYMENT_FAILED; thanh toán lại bằng thẻ test thì PAID; thanh toán đơn đã PAID → 409 | FR-24, FR-25, FR-27 | Pass |
-| INT-37 | Ví/Thẻ mô phỏng | thẻ bị từ chối / hết hạn; DB chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ hay CVV | FR-25 | Pass |
+| INT-37 | Ví/Thẻ mô phỏng | thẻ bị từ chối / không đủ số dư kèm lý do; hạn thẻ bất kỳ (kể cả 11/12) không ảnh hưởng; DB chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ hay CVV | FR-25 | Pass |
 | INT-38 | Ví/Thẻ mô phỏng | dữ liệu sai → 400, thiếu key → 400, key dùng cho yêu cầu khác → 409, chưa đăng nhập → 401 | FR-24, FR-25, FR-26 | Pass |
 | INT-39 | Màn hình quầy | `GET /staff/orders`: chưa đăng nhập 401, khách 403, status ngoài danh sách 400 | FR-33 | Pass |
 | INT-40 | Màn hình quầy | chỉ trả đơn đã thanh toán, lọc đúng trạng thái, đơn đến trước xếp trước | FR-33 | Pass |
@@ -77,7 +78,7 @@ Tất cả test nằm trong [`apps/api/test/flow.int-spec.ts`](../../apps/api/te
 
 ## 3. Kiểm tra nhất quán đơn và thanh toán (NFR-16)
 
-Chạy trên database test ngay sau bộ 44 test (42 đơn, 26 giao dịch, 11 giao dịch `SUCCESS`):
+Chạy trên database test ngay sau bộ 44 test (42 đơn, 27 giao dịch, 12 giao dịch `SUCCESS`):
 
 ```sql
 -- Đơn từ PAID trở đi nhưng không có Payment SUCCESS
@@ -94,17 +95,19 @@ Kết quả: **0** và **0** dòng vi phạm.
 
 ## 4. Chạy toàn hệ thống bằng Docker Compose (NFR-18, NFR-19)
 
-Cùng commit `e093618`, Docker Engine 29.9.2, không có tệp `.env` (dùng giá trị mặc định trong `docker-compose.yml`):
+Nội dung giống hệt commit `ff1f09e`, Docker Engine 29.9.2, không có tệp `.env` (dùng giá trị mặc định trong `docker-compose.yml`). Cổng 3000 trên máy đang bận nên `web` chạy ở cổng 3002 và `CORS_ORIGIN` thêm `http://localhost:3002`:
 
 | Bước | Kết quả |
 |---|---|
-| `docker compose up -d --build --wait` | `db`, `api`, `web` đều `healthy` sau 57 giây |
-| `http://localhost:3000` | 200 |
+| `docker compose up -d --build --wait` | `db`, `api`, `web` đều `healthy` |
+| `http://localhost:3002` | 200 |
 | `GET http://localhost:3001/health` | `{"status":"ok","db":"up"}` |
 | `GET /products` | 5 món (dữ liệu seed) |
-| Đăng ký tài khoản thử, `POST /orders` 1 món | đơn `PENDING_PAYMENT`, 29.000đ |
-| `POST /payments` phương thức `WALLET` | `SUCCESS`, đơn `PAID`, ví còn 171.000đ |
-| `GET /orders/me` | 1 đơn, trạng thái `PAID` |
+| Đăng ký tài khoản thử | ví mô phỏng có sẵn 1.000.000đ |
+| `POST /orders` 1 món | đơn `PENDING_PAYMENT`, 29.000đ |
+| `POST /payments` phương thức `WALLET` | `SUCCESS`, đơn `PAID`, ví còn 971.000đ |
+| `POST /payments` phương thức `CARD`, thẻ `4111111111111111`, hạn `11/12` | `SUCCESS`, đơn `PAID`, chỉ lưu 4 số cuối `1111` |
+| `GET /auth/me` | `walletBalance` 971.000đ |
 | `GET /orders?status=abc` | 400 |
 | `docker compose restart api` (seed chạy lại vì `AUTO_SEED=true`) | vẫn 5 món, không nhân đôi |
 | `docker compose port db 5432` | không mở cổng PostgreSQL ra máy host |
