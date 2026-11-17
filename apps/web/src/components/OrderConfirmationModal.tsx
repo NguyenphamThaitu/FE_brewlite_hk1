@@ -1,14 +1,19 @@
 ﻿
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { CartItem, Topping } from "@/types/product";
 import { clearCart } from "@/utils/cart";
-import { clearSession, getStoredUser, isSessionActive, subscribeAuth } from "@/utils/auth";
 import {
-Lock,
-CheckCircle2,
+  clearSession,
+  getStoredUser,
+  isSessionActive,
+  PENDING_PAYMENT_KEY,
+  subscribeAuth,
+} from "@/utils/auth";
+import {
+  Lock,
   X,
   ShoppingBag,
   ArrowRight,
@@ -18,6 +23,7 @@ CheckCircle2,
 import {
   createOrder,
   createMockPayment,
+  getMyWalletBalance,
   MockPaymentMethod,
 } from "@/utils/orders-api";
 
@@ -29,12 +35,11 @@ interface OrderConfirmationModalProps {
 }
 
 interface PendingPayment {
+  userId: number;
   orderId: number;
   idempotencyKey: string;
   itemsSignature: string;
 }
-
-const PENDING_PAYMENT_KEY = "brewlite_pending_payment";
 
 function createIdempotencyKey() {
   return typeof crypto !== "undefined" &&
@@ -49,9 +54,6 @@ export default function OrderConfirmationModal({
   items,
   totalAmount,
 }: OrderConfirmationModalProps) {
-const [isSuccess, setIsSuccess] = useState<boolean>(false);
-const [orderCode, setOrderCode] = useState<string>("");
-
 const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
 
 // Tên người nhận mặc định là tên tài khoản đang đăng nhập.
@@ -72,6 +74,38 @@ const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
+  const [wallet, setWallet] = useState<{ userId: number; balance: number } | null>(null);
+
+  // Lấy số dư ví thực tế mỗi lần mở modal (cần GET /auth/me trả walletBalance).
+  const userId = user?.id;
+  // Chỉ dùng số dư đã lấy cho đúng tài khoản đang đăng nhập.
+  const walletBalance = wallet && wallet.userId === userId ? wallet.balance : null;
+  useEffect(() => {
+    if (!isOpen || !userId) return;
+    let cancelled = false;
+    getMyWalletBalance()
+      .then((me) => {
+        if (!cancelled && typeof me.walletBalance === "number") {
+          setWallet({ userId, balance: me.walletBalance });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, userId]);
+
+// Đóng modal luôn xóa trạng thái "thành công"/lỗi của lần đặt trước (Bug 1).
+const handleCloseModal = () => {
+  if (isSubmitting) return;
+  setSuccessMessage("");
+  setSuccessOrderId(null);
+  setErrorMessage("");
+  onClose();
+};
+
+// Modal đóng thì không render gì (kể cả popup yêu cầu đăng nhập).
+if (!isOpen) return null;
 
 // Đặt hàng bắt buộc phải đăng nhập và phiên còn hiệu lực.
 if (!user || !isSessionActive()) {
@@ -85,7 +119,7 @@ if (!user || !isSessionActive()) {
     >
       <div
         className="fixed inset-0 bg-[#2B1B12]/60 backdrop-blur-xs"
-        onClick={onClose}
+        onClick={handleCloseModal}
       />
       <div className="relative w-full max-w-sm bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE0D2] p-8 text-center space-y-5 z-10">
         <div className="w-14 h-14 rounded-full bg-[#FFF4EB] text-[#E06D20] mx-auto flex items-center justify-center">
@@ -118,7 +152,7 @@ if (!user || !isSessionActive()) {
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseModal}
             className="text-xs font-bold text-[#786354] hover:text-[#E06D20] transition py-1.5"
           >
             Để sau
@@ -234,6 +268,7 @@ const handleConfirmOrder = async () => {
           const parsed = JSON.parse(saved) as PendingPayment;
 
           if (
+            parsed.userId === user.id &&
             parsed.orderId &&
             parsed.idempotencyKey &&
             parsed.itemsSignature === itemsSignature
@@ -251,6 +286,7 @@ const handleConfirmOrder = async () => {
         });
 
         pending = {
+          userId: user.id,
           orderId: order.id,
           idempotencyKey: createIdempotencyKey(),
           itemsSignature,
@@ -280,7 +316,13 @@ const handleConfirmOrder = async () => {
         clearCart();
 
         setSuccessOrderId(payment.orderId);
-setSuccessMessage(payment.message);
+        setSuccessMessage(payment.message);
+        setCardNumber("");
+        setCardExpiry("");
+        setCardCvv("");
+        if (typeof payment.walletBalance === "number") {
+          setWallet({ userId: user.id, balance: payment.walletBalance });
+        }
       } else {
         // Thanh toán thất bại vẫn lưu đơn để khách có thể thử lại.
         // Tạo key mới để backend không trả lại kết quả thất bại cũ.
@@ -293,6 +335,10 @@ setSuccessMessage(payment.message);
           PENDING_PAYMENT_KEY,
           JSON.stringify(retryPayment),
         );
+
+        if (typeof payment.walletBalance === "number") {
+          setWallet({ userId: user.id, balance: payment.walletBalance });
+        }
 
         setErrorMessage(
           payment.message || "Thanh toán thất bại. Vui lòng thử lại.",
@@ -309,8 +355,6 @@ setSuccessMessage(payment.message);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <div
       role="dialog"
@@ -320,9 +364,7 @@ setSuccessMessage(payment.message);
     >
       <div
         className="fixed inset-0 bg-[#2B1B12]/60 backdrop-blur-xs"
-        onClick={() => {
-          if (!isSubmitting) onClose();
-        }}
+        onClick={handleCloseModal}
       />
 
       <div className="relative w-full max-w-lg bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE0D2] overflow-hidden z-10 flex flex-col max-h-[90vh]">
@@ -347,7 +389,7 @@ setSuccessMessage(payment.message);
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseModal}
             disabled={isSubmitting}
             aria-label="Đóng popup xác nhận"
             className="w-8 h-8 rounded-full flex items-center justify-center text-[#786354] hover:bg-[#FAF4ED] transition disabled:opacity-50"
@@ -478,10 +520,25 @@ setSuccessMessage(payment.message);
             </div>
 
             {paymentMethod === "WALLET" && (
-              <p className="text-[11px] text-[#786354]">
-                Thanh toán trực tiếp bằng số dư ví của tài khoản.
-                Số dư mặc định của tài khoản mới là 200.000đ.
-              </p>
+              <div className="text-[11px] text-[#786354] space-y-1">
+                <p>Thanh toán trực tiếp bằng số dư ví của tài khoản.</p>
+                <p data-testid="wallet-balance">
+                  Số dư ví hiện tại:{" "}
+                  <span className="font-bold text-[#2B1B12]">
+                    {walletBalance === null ? "..." : formatPrice(walletBalance)}
+                  </span>
+                </p>
+                {walletBalance !== null &&
+                  walletBalance < totalAmount &&
+                  !successMessage && (
+                    <p
+                      data-testid="wallet-insufficient"
+                      className="font-bold text-red-600"
+                    >
+                      Số dư không đủ cho đơn này. Hãy chọn Thẻ ngân hàng.
+                    </p>
+                  )}
+              </div>
             )}
 
             {paymentMethod === "CARD" && (
@@ -634,7 +691,7 @@ setSuccessMessage(payment.message);
         <div className="p-4 sm:p-6 bg-white border-t border-[#EAE0D2] flex gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseModal}
             data-testid={successMessage ? "order-finish-button" : undefined}
             disabled={isSubmitting}
             className="px-5 py-3 rounded-full border border-[#D8CDC0] text-[#4A3528] hover:bg-[#FAF4ED] text-xs font-bold transition disabled:opacity-50"

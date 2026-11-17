@@ -67,6 +67,8 @@ vi.mock("@/utils/orders-api", () => ({
   createMockPayment: vi.fn(),
   getMyOrders: vi.fn(),
   getOrderDetail: vi.fn(),
+  getMyWalletBalance: vi.fn().mockResolvedValue({ walletBalance: 200000 }),
+  cancelOrder: vi.fn(),
 }));
 
 describe("E2E Test: Luồng đặt món và thanh toán mô phỏng BrewLite", () => {

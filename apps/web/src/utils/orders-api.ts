@@ -91,6 +91,16 @@ export function getMyOrders(page = 1, limit = 20) {
   return request("/orders/me?page=" + page + "&limit=" + limit);
 }
 
+export function cancelOrder(id: number) {
+  return request<{ id: number; status: string }>(`/orders/${id}/cancel`, {
+    method: "POST",
+  });
+}
+
+export function getMyWalletBalance() {
+  return request<{ walletBalance?: number }>("/auth/me");
+}
+
 export function getOrderDetail(id: number) {
   return request(`/orders/${id}`);
 }
