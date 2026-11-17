@@ -20,6 +20,9 @@ const TOKEN_KEY = "brewlite_token";
 const USER_KEY = "brewlite_user";
 const AUTH_EVENT = "brewlite_auth_updated";
 
+/** Khóa sessionStorage giữ đơn đang chờ thanh toán (dùng ở modal đặt hàng và trang lịch sử đơn). */
+export const PENDING_PAYMENT_KEY = "brewlite_pending_payment";
+
 // useSyncExternalStore yêu cầu getSnapshot trả về CÙNG một tham chiếu khi dữ liệu không đổi,
 // nên cache kết quả parse theo chuỗi gốc trong localStorage.
 let cachedRaw: string | null = null;
@@ -92,6 +95,8 @@ export const clearSession = (): void => {
   try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    // Đơn chờ thanh toán thuộc về tài khoản cũ, không để lại cho tài khoản khác.
+    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
     window.dispatchEvent(new Event(AUTH_EVENT));
   } catch (error) {
     console.error("Lỗi khi xóa phiên đăng nhập:", error);
