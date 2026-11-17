@@ -88,7 +88,8 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       await http().post('/auth/login').send({ email: 'an@test.vn', password: 'sai-mat-khau' }).expect(401);
       const login = await http().post('/auth/login').send({ email: 'an@test.vn', password: 'secret123' }).expect(200);
       expect(login.body.accessToken).toBeTruthy();
-      expect((await http().get('/auth/me').set(auth(token)).expect(200)).body).toMatchObject({ email: 'an@test.vn', role: 'CUSTOMER' });
+      expect(login.body.user).toMatchObject({ email: 'an@test.vn', walletBalance: 1000000 }); // ví mô phỏng cấp sẵn 1.000.000đ
+      expect((await http().get('/auth/me').set(auth(token)).expect(200)).body).toMatchObject({ email: 'an@test.vn', role: 'CUSTOMER', walletBalance: 1000000 });
     });
     it('chưa đăng nhập / token sai bị chặn', async () => {
       await http().post('/orders').send({ items: [] }).expect(401);
@@ -427,7 +428,9 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       const order = await newOrder(t);
       const k = key();
       const first = (await payMock(t, { orderId: order.id, method: 'WALLET' }, k).expect(200)).body;
-      expect(first).toMatchObject({ method: 'WALLET', paymentStatus: 'SUCCESS', orderStatus: 'PAID', errorCode: null, walletBalance: 200000 - order.totalAmount });
+      expect(first).toMatchObject({ method: 'WALLET', paymentStatus: 'SUCCESS', orderStatus: 'PAID', errorCode: null, walletBalance: 1000000 - order.totalAmount });
+      // Số dư sau khi trừ cũng là số GET /auth/me trả về, để web hiển thị đúng
+      expect((await http().get('/auth/me').set(auth(t)).expect(200)).body.walletBalance).toBe(first.walletBalance);
 
       const again = (await payMock(t, { orderId: order.id, method: 'WALLET' }, k).expect(200)).body;
       expect(again).toEqual(first);

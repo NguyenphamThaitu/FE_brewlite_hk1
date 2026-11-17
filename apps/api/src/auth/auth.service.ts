@@ -9,8 +9,9 @@ import { LoginDto, RegisterDto } from './auth.dto';
 export class AuthService {
   constructor(private prisma: PrismaService, private jwt: JwtService) {}
 
+  /** Thông tin trả cho client; walletBalance để web hiển thị số dư ví mô phỏng (FR-24) */
   private publicUser(u: User) {
-    return { id: u.id, email: u.email, fullName: u.fullName, role: u.role };
+    return { id: u.id, email: u.email, fullName: u.fullName, role: u.role, walletBalance: u.walletBalance };
   }
   private token(u: User) {
     return this.jwt.sign({ sub: u.id, email: u.email, role: u.role });
