@@ -638,4 +638,51 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       expect(cancelled).not.toContain(recent.id);
     });
   });
+  describe('Bổ sung: hủy đơn, giữ giá lúc đặt (FR-21), không bán vượt kho (NFR-15)', () => {
+    it('hủy đơn: chỉ chủ đơn được hủy; nhân viên xem được nhưng hủy hộ bị 403, đơn giữ nguyên', async () => {
+      const t = await register('cancel-owner@test.vn');
+      const order = (await placeOrder(t, ONE_DRINK).expect(201)).body;
+      const staff = await staffLogin();
+      await http().get(`/orders/${order.id}`).set(auth(staff)).expect(200);
+      await http().post(`/orders/${order.id}/cancel`).set(auth(staff)).expect(403);
+      expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('PENDING_PAYMENT');
+      expect((await http().post(`/orders/${order.id}/cancel`).set(auth(t)).expect(201)).body.status).toBe('CANCELLED');
+    });
+
+    it('FR-21: đổi tên và giá món sau khi đặt, đơn cũ vẫn giữ tên và giá lúc đặt', async () => {
+      const t = await register('snapshot@test.vn');
+      const order = (await placeOrder(t, [{ productId: 2, sizeId: 1, quantity: 2 }]).expect(201)).body;
+      const before = await prisma.product.findUniqueOrThrow({ where: { id: 2 } });
+      await prisma.product.update({ where: { id: 2 }, data: { basePrice: before.basePrice + 10000, name: before.name + ' (mới)' } });
+      try {
+        const detail = (await http().get(`/orders/${order.id}`).set(auth(t)).expect(200)).body;
+        expect(detail.totalAmount).toBe(order.totalAmount);
+        expect(detail.items[0]).toMatchObject({ productName: before.name, unitPrice: order.items[0].unitPrice, lineTotal: order.items[0].lineTotal });
+        // Đơn mới đặt sau khi đổi giá thì dùng giá mới
+        const fresh = (await placeOrder(t, [{ productId: 2, sizeId: 1, quantity: 2 }]).expect(201)).body;
+        expect(fresh.totalAmount).toBe(order.totalAmount + 2 * 10000);
+      } finally {
+        await prisma.product.update({ where: { id: 2 }, data: { basePrice: before.basePrice, name: before.name } });
+      }
+    });
+
+    it('NFR-15: 20 yêu cầu đặt đơn đồng thời, tồn kho chỉ đủ 5 đơn → đúng 5 đơn thành công, kho không âm', async () => {
+      const t = await register('race20@test.vn');
+      const keep = { milk: await stockOf('Sữa tươi'), sugar: await stockOf('Đường') };
+      await setStock('Sữa tươi', 100000);
+      await setStock('Đường', 100000);
+      await setStock('Bột matcha', 40); // Matcha latte size S cần 8g bột matcha → đủ đúng 5 ly
+      try {
+        const res = await Promise.all(Array.from({ length: 20 }, () => placeOrder(t, [{ productId: 5, sizeId: 1, quantity: 1 }])));
+        const codes = res.map((r) => r.status);
+        expect(codes.filter((c) => c === 201)).toHaveLength(5);
+        expect(codes.filter((c) => c === 409)).toHaveLength(15);
+        expect(await stockOf('Bột matcha')).toBe(0);
+      } finally {
+        await setStock('Bột matcha', 1500);
+        await setStock('Sữa tươi', keep.milk);
+        await setStock('Đường', keep.sugar);
+      }
+    });
+  });
 });
