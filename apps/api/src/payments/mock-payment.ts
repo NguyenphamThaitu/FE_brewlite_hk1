@@ -8,10 +8,11 @@ export type MockMethod = (typeof MOCK_METHODS)[number];
 export type CardDecision = { ok: true } | { ok: false; code: string; message: string };
 
 const FAILURE_MESSAGES: Record<string, string> = {
-  CARD_DECLINED: 'Thẻ bị ngân hàng từ chối',
-  CARD_INSUFFICIENT_FUNDS: 'Thẻ không đủ số dư',
+  CARD_DECLINED: 'Ngân hàng phát hành thẻ từ chối giao dịch',
+  CARD_INSUFFICIENT_FUNDS: 'Tài khoản thẻ không đủ số dư để thanh toán đơn này',
+  // Giữ để trả lại đúng thông báo cho giao dịch cũ (trước khi bỏ kiểm tra hạn thẻ)
   CARD_EXPIRED: 'Thẻ đã hết hạn',
-  CARD_NOT_SUPPORTED: 'Chỉ chấp nhận số thẻ test của môi trường mô phỏng',
+  CARD_NOT_SUPPORTED: 'Số thẻ không có trong danh sách thẻ test của môi trường mô phỏng',
   WALLET_INSUFFICIENT_BALANCE: 'Số dư ví không đủ',
 };
 
@@ -27,14 +28,11 @@ export const TEST_CARDS: Record<string, string | null> = {
   '4000000000009995': 'CARD_INSUFFICIENT_FUNDS',
 };
 
-/** expiry dạng MM/YY. Thẻ còn hạn đến hết tháng ghi trên thẻ. */
-export function isExpired(expiry: string, now = new Date()): boolean {
-  const [mm, yy] = expiry.split('/').map(Number);
-  return now >= new Date(2000 + yy, mm, 1); // ngày 1 của tháng kế tiếp
-}
-
-export function decideCard(card: { number: string; expiry: string }, now = new Date()): CardDecision {
-  if (isExpired(card.expiry, now)) return fail('CARD_EXPIRED');
+/**
+ * Chỉ số thẻ quyết định kết quả. Hạn thẻ (MM/YY) và CVV (3 số) chỉ cần đúng định dạng – kiểm tra ở DTO –
+ * và không ảnh hưởng kết quả, để thẻ test dùng được với bất kỳ hạn thẻ nào khi demo.
+ */
+export function decideCard(card: { number: string }): CardDecision {
   if (!(card.number in TEST_CARDS)) return fail('CARD_NOT_SUPPORTED');
   const code = TEST_CARDS[card.number];
   return code ? fail(code) : { ok: true };

@@ -35,8 +35,8 @@ model User {
   passwordHash  String
   fullName      String
   role          Role     @default(CUSTOMER)
-  /// Số dư ví mô phỏng (VND) – mỗi tài khoản mới được cấp sẵn để thử thanh toán WALLET
-  walletBalance Int      @default(200000)
+  /// Số dư ví mô phỏng (VND) – mỗi tài khoản mới được cấp sẵn 1.000.000đ để thử thanh toán WALLET
+  walletBalance Int      @default(1000000)
   createdAt     DateTime @default(now())
   orders        Order[]
   /// Các lần đổi trạng thái đơn do người này thực hiện (FR-34)

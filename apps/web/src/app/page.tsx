@@ -550,9 +550,13 @@ export default function MenuPage() {
       />
      
 
-      {/* Toast Notification */}
+      {/* Toast Notification: hiện giữa mép trên màn hình cho dễ thấy; pointer-events-none
+          để không bao giờ che nút "Đặt hàng & Thanh toán" ở đáy giỏ hàng. */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-[#2B1B12] text-white text-xs font-extrabold shadow-2xl border border-white/15 animate-in slide-in-from-bottom-5 duration-300">
+        <div
+          role="status"
+          className="pointer-events-none fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2.5 px-5 py-3.5 rounded-full bg-[#2B1B12] text-white text-xs font-extrabold shadow-2xl border border-white/15 animate-in slide-in-from-top-5 duration-300 max-w-[calc(100vw-2rem)]"
+        >
           <CheckCircle2 className="w-4 h-4 text-[#E06D20] flex-shrink-0" />
           <span>{toastMessage}</span>
         </div>

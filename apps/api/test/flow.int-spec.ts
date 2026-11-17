@@ -88,7 +88,8 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       await http().post('/auth/login').send({ email: 'an@test.vn', password: 'sai-mat-khau' }).expect(401);
       const login = await http().post('/auth/login').send({ email: 'an@test.vn', password: 'secret123' }).expect(200);
       expect(login.body.accessToken).toBeTruthy();
-      expect((await http().get('/auth/me').set(auth(token)).expect(200)).body).toMatchObject({ email: 'an@test.vn', role: 'CUSTOMER' });
+      expect(login.body.user).toMatchObject({ email: 'an@test.vn', walletBalance: 1000000 }); // ví mô phỏng cấp sẵn 1.000.000đ
+      expect((await http().get('/auth/me').set(auth(token)).expect(200)).body).toMatchObject({ email: 'an@test.vn', role: 'CUSTOMER', walletBalance: 1000000 });
     });
     it('chưa đăng nhập / token sai bị chặn', async () => {
       await http().post('/orders').send({ items: [] }).expect(401);
@@ -427,7 +428,9 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       const order = await newOrder(t);
       const k = key();
       const first = (await payMock(t, { orderId: order.id, method: 'WALLET' }, k).expect(200)).body;
-      expect(first).toMatchObject({ method: 'WALLET', paymentStatus: 'SUCCESS', orderStatus: 'PAID', errorCode: null, walletBalance: 200000 - order.totalAmount });
+      expect(first).toMatchObject({ method: 'WALLET', paymentStatus: 'SUCCESS', orderStatus: 'PAID', errorCode: null, walletBalance: 1000000 - order.totalAmount });
+      // Số dư sau khi trừ cũng là số GET /auth/me trả về, để web hiển thị đúng
+      expect((await http().get('/auth/me').set(auth(t)).expect(200)).body.walletBalance).toBe(first.walletBalance);
 
       const again = (await payMock(t, { orderId: order.id, method: 'WALLET' }, k).expect(200)).body;
       expect(again).toEqual(first);
@@ -449,18 +452,22 @@ describe('BrewLite API – luồng end-to-end (PostgreSQL thật)', () => {
       expect(await prisma.payment.count({ where: { orderId: order.id } })).toBe(2);
     });
 
-    it('thẻ bị từ chối / hết hạn; DB chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ hay CVV', async () => {
+    it('thẻ bị từ chối / không đủ số dư kèm lý do; hạn thẻ bất kỳ không ảnh hưởng; DB chỉ lưu 4 số cuối, không lưu số thẻ đầy đủ hay CVV', async () => {
       const t = await register('card@test.vn');
       const order = await newOrder(t);
       const declined = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, number: '4000000000000002' } }).expect(200)).body;
-      expect(declined).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_DECLINED', orderStatus: 'PAYMENT_FAILED', cardLast4: '0002' });
-      const expired = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, expiry: '01/20' } }).expect(200)).body;
-      expect(expired).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_EXPIRED' });
+      expect(declined).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_DECLINED', orderStatus: 'PAYMENT_FAILED', cardLast4: '0002', message: 'Ngân hàng phát hành thẻ từ chối giao dịch' });
+      const noFunds = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, number: '4000000000009995' } }).expect(200)).body;
+      expect(noFunds).toMatchObject({ paymentStatus: 'FAILED', errorCode: 'CARD_INSUFFICIENT_FUNDS', cardLast4: '9995' });
+      // Hạn thẻ đã qua (11/2012) nhưng số thẻ test đúng → vẫn thanh toán thành công
+      const paid = (await payMock(t, { orderId: order.id, method: 'CARD', card: { ...CARD_OK, expiry: '11/12' } }).expect(200)).body;
+      expect(paid).toMatchObject({ paymentStatus: 'SUCCESS', orderStatus: 'PAID', cardLast4: '1111' });
 
       const rows = await prisma.$queryRawUnsafe<{ j: string }[]>('SELECT row_to_json(p)::text AS j FROM "Payment" p WHERE "orderId" = $1', order.id);
-      expect(rows).toHaveLength(2);
+      expect(rows).toHaveLength(3);
       for (const r of rows) {
         expect(r.j).not.toContain('4000000000000002');
+        expect(r.j).not.toContain('4000000000009995');
         expect(r.j).not.toContain('4111111111111111');
         expect(r.j).not.toContain('"987"');
       }

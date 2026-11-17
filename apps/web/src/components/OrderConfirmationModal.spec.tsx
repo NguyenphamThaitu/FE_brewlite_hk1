@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrderConfirmationModal from "./OrderConfirmationModal";
 import { getStoredCart, saveCart } from "@/utils/cart";
-import { PENDING_PAYMENT_KEY, saveSession } from "@/utils/auth";
+import { getStoredUser, PENDING_PAYMENT_KEY, saveSession } from "@/utils/auth";
 import { CartItem } from "@/types/product";
 import {
   createOrder,
@@ -16,6 +16,7 @@ vi.mock("@/utils/orders-api", () => ({
   createMockPayment: vi.fn(),
   getMyWalletBalance: vi.fn(),
 }));
+
 
 const user = {
   id: 1,
@@ -202,5 +203,151 @@ expect(screen.getByTestId("order-code")).toHaveTextContent(/#BL-\d+/);
       /50\.000/,
     );
     expect(screen.getByTestId("wallet-insufficient")).toBeInTheDocument();
+  });
+});
+
+describe("OrderConfirmationModal: ví mô phỏng (FR-24)", () => {
+  const walletPayment = {
+    paymentId: 1,
+    orderId: 123,
+    method: "WALLET" as const,
+    amount: 70000,
+    cardLast4: undefined,
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    saveCart(items);
+    vi.mocked(createOrder).mockReset();
+    vi.mocked(createMockPayment).mockReset();
+    // Số dư lấy từ phiên đăng nhập; GET /auth/me không trả về trong các test này
+    vi.mocked(getMyWalletBalance).mockReset();
+    vi.mocked(getMyWalletBalance).mockReturnValue(new Promise(() => {}));
+    vi.mocked(createOrder).mockResolvedValue({
+      id: 123,
+      totalAmount: 70000,
+      status: "PENDING_PAYMENT",
+    });
+  });
+
+  it("hiện số dư ví, số dư sau thanh toán và trừ tiền khi thanh toán thành công", async () => {
+    saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 1000000 } });
+    vi.mocked(createMockPayment).mockResolvedValue({
+      ...walletPayment,
+      paymentStatus: "SUCCESS",
+      orderStatus: "PAID",
+      errorCode: null,
+      message: "Thanh toán thành công",
+      walletBalance: 930000,
+    });
+    renderModal();
+
+    expect(screen.getByTestId("wallet-balance")).toHaveTextContent(/1\.000\.000/);
+    expect(screen.getByTestId("wallet-balance-after")).toHaveTextContent(/930\.000/);
+
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+
+    expect(await screen.findByTestId("wallet-paid")).toHaveTextContent(/70\.000.*930\.000/);
+    expect(screen.getByTestId("wallet-balance")).toHaveTextContent(/930\.000/);
+    expect(getStoredUser()?.walletBalance).toBe(930000);
+  });
+
+  it("số dư không đủ: báo thiếu tiền, khóa nút thanh toán, không tạo đơn", () => {
+    saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 50000 } });
+    renderModal();
+
+    expect(screen.getByTestId("wallet-insufficient")).toHaveTextContent(/thiếu\s+20\.000/);
+    expect(screen.getByTestId("confirm-order-submit")).toBeDisabled();
+
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+    expect(createOrder).not.toHaveBeenCalled();
+    expect(createMockPayment).not.toHaveBeenCalled();
+  });
+
+  it("API báo ví không đủ: hiện lỗi, cập nhật số dư và khóa thanh toán bằng ví", async () => {
+    saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 100000 } });
+    vi.mocked(createMockPayment).mockResolvedValue({
+      ...walletPayment,
+      paymentStatus: "FAILED",
+      orderStatus: "PAYMENT_FAILED",
+      errorCode: "WALLET_INSUFFICIENT_BALANCE",
+      message: "Số dư ví không đủ",
+      walletBalance: 20000,
+    });
+    renderModal();
+
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Số dư ví không đủ.*20\.000/);
+    expect(screen.getByTestId("wallet-balance")).toHaveTextContent(/20\.000/);
+    expect(screen.getByTestId("confirm-order-submit")).toBeDisabled();
+    expect(screen.queryByTestId("order-success-title")).not.toBeInTheDocument();
+    expect(getStoredCart()).toHaveLength(1); // đơn chưa thanh toán thì giỏ hàng vẫn giữ
+  });
+
+  it("chọn Thẻ ngân hàng thì không bị chặn bởi số dư ví", () => {
+    saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 0 } });
+    renderModal();
+
+    expect(screen.getByTestId("confirm-order-submit")).toBeDisabled();
+    fireEvent.click(screen.getByText("Thẻ ngân hàng"));
+
+    expect(screen.queryByTestId("wallet-insufficient")).not.toBeInTheDocument();
+    expect(screen.getByTestId("confirm-order-submit")).not.toBeDisabled();
+  });
+});
+
+describe("OrderConfirmationModal: thẻ mô phỏng (FR-25)", () => {
+  const fillCard = (number: string, expiry: string, cvv = "123") => {
+    fireEvent.click(screen.getByText("Thẻ ngân hàng"));
+    fireEvent.change(screen.getByTestId("payment-card-number"), { target: { value: number } });
+    fireEvent.change(screen.getByTestId("payment-card-expiry"), { target: { value: expiry } });
+    fireEvent.change(screen.getByTestId("payment-card-cvv"), { target: { value: cvv } });
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    saveCart(items);
+    vi.mocked(createOrder).mockReset();
+    vi.mocked(createMockPayment).mockReset();
+    // Số dư lấy từ phiên đăng nhập; GET /auth/me không trả về trong các test này
+    vi.mocked(getMyWalletBalance).mockReset();
+    vi.mocked(getMyWalletBalance).mockReturnValue(new Promise(() => {}));
+    vi.mocked(createOrder).mockResolvedValue({ id: 123, totalAmount: 70000, status: "PENDING_PAYMENT" });
+    saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 1000000 } });
+  });
+
+  it("hạn thẻ bất kỳ (kể cả đã qua) không chặn thanh toán: thẻ test đúng thì thành công", async () => {
+    vi.mocked(createMockPayment).mockResolvedValue({
+      paymentId: 7, orderId: 123, method: "CARD", amount: 70000,
+      paymentStatus: "SUCCESS", orderStatus: "PAID", errorCode: null,
+      message: "Thanh toán thành công", cardLast4: "1111",
+    });
+    renderModal();
+
+    fillCard("4111111111111111", "1112");
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+
+    expect(await screen.findByTestId("order-success-title")).toBeInTheDocument();
+    expect(createMockPayment).toHaveBeenCalledWith(123, "CARD", expect.any(String), {
+      number: "4111111111111111", expiry: "11/12", cvv: "123",
+    });
+  });
+
+  it("thẻ test bị từ chối: hiện lý do thất bại, giữ giỏ hàng để thanh toán lại", async () => {
+    vi.mocked(createMockPayment).mockResolvedValue({
+      paymentId: 8, orderId: 123, method: "CARD", amount: 70000,
+      paymentStatus: "FAILED", orderStatus: "PAYMENT_FAILED", errorCode: "CARD_DECLINED",
+      message: "Ngân hàng phát hành thẻ từ chối giao dịch", cardLast4: "0002",
+    });
+    renderModal();
+
+    fillCard("4000000000000002", "1230");
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Thanh toán thẻ thất bại: Ngân hàng phát hành thẻ từ chối giao dịch/);
+    expect(getStoredCart()).toHaveLength(1);
   });
 });
