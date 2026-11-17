@@ -37,8 +37,8 @@ khi tạo đơn thất bại thì không để lại đơn dở dang hay kho b�
   hoàn kho bằng chính hàm hủy đơn có điều kiện ở trên; thời hạn đổi bằng `ORDER_PAYMENT_TIMEOUT_MINUTES`.
 - SRS (FR-20) chỉ yêu cầu "kiểm tra và trừ tồn kho"; tồn kho theo nguyên liệu là cách hiện thực chi
   tiết hơn, vẫn đáp ứng FR-03 (món hết nguyên liệu thì đặt bị `409`).
-- NFR-15 yêu cầu test 20 request đồng thời với tồn kho cho 5 đơn; test hiện có kiểm tra trường hợp
-  chỉ đủ cho 1 đơn, cùng cơ chế khóa.
+- NFR-15: integration test gửi 20 yêu cầu đặt đơn đồng thời khi tồn kho chỉ đủ 5 đơn → đúng 5 đơn thành công,
+  15 đơn nhận `409`, tồn kho về 0 và không âm (bổ sung 17/11/2026, cùng cơ chế khóa).
 
 ## Phương án đã cân nhắc
 

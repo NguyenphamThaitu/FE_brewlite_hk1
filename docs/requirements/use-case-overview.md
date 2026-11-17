@@ -69,3 +69,8 @@ UC-01 khớp mã và tên với đặc tả chi tiết của Anh Vũ ([`use-case
    mỗi use-case thuộc nhóm nào.
 2. **Báo cáo doanh thu (FR-38, Could)** của Quản lý/Admin chưa vẽ trên sơ đồ vì nằm ngoài MVP và
    chưa có trong tài liệu phạm vi.
+3. **UC-09 Hủy đơn chưa có FR riêng trong SRS.** Đã hiện thực: `POST /orders/:id/cancel` (chỉ chủ đơn, chỉ đơn
+   chưa thanh toán xong, hoàn kho) và nút Hủy đơn ở trang `/orders`. Cột *Yêu cầu liên quan* ghi FR-22, FR-27 là
+   các yêu cầu gần nhất về đơn chưa thanh toán.
+4. **Vai trò Quản lý cửa hàng.** SRS FR-17 có vai trò `ADMIN`, code hiện chỉ có `CUSTOMER` và `STAFF`; quản lý
+   dùng tài khoản `STAFF`. Vai trò `ADMIN` chỉ cần khi làm UC-12 Quản lý menu (FR-35, Should).

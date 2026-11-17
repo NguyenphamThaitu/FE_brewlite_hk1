@@ -11,6 +11,7 @@ Minh chứng cho cột *Trạng thái / minh chứng* của [`traceability-matri
 | Môi trường | Node.js 24.16.0, PostgreSQL 18.6 trên máy cá nhân; database trống tạo riêng cho lần chạy |
 | Kết quả | **44/44 test pass**, 1 test suite, 12,3 giây |
 | Lần chạy trước | Commit `e093618` (trước PR #77): 44/44 pass |
+| Lần chạy bổ sung | Commit `0cd0501` (thêm INT-45 → INT-47, chỉ chủ đơn được hủy đơn): **47/47 pass**, 9,8 giây |
 
 CI chưa chạy test tích hợp vì cần PostgreSQL (xem [`ci-evidence.md`](../ci-evidence.md), mục 7), nên báo cáo này là minh chứng chạy tay.
 
@@ -27,7 +28,7 @@ Mặc định file test chạy `prisma migrate reset` trên `TEST_DATABASE_URL`,
 
 ## 2. Danh sách test
 
-Tất cả test nằm trong [`apps/api/test/flow.int-spec.ts`](../../apps/api/test/flow.int-spec.ts), đánh mã `INT-01` → `INT-44` theo thứ tự chạy. Đây là mã của test có thật; các mã dạng `INT-Txx` còn lại trong ma trận là mã gợi ý, chưa gắn với test nào.
+Tất cả test nằm trong [`apps/api/test/flow.int-spec.ts`](../../apps/api/test/flow.int-spec.ts), đánh mã `INT-01` → `INT-47` theo thứ tự chạy. Đây là mã của test có thật; các mã dạng `INT-Txx` còn lại trong ma trận là mã gợi ý, chưa gắn với test nào.
 
 | ID | Nhóm | Test | Yêu cầu | Kết quả |
 |---|---|---|---|---|
@@ -75,10 +76,13 @@ Tất cả test nằm trong [`apps/api/test/flow.int-spec.ts`](../../apps/api/te
 | INT-42 | Lịch sử trạng thái | đổi sai thứ tự không ghi lịch sử; khách hủy ghi CUSTOMER_CANCEL; IPN VNPay ghi người đổi là hệ thống | FR-34 | Pass |
 | INT-43 | Tự hủy đơn | quá 15 phút: hủy đơn, hoàn kho đúng 1 lần, ghi AUTO_EXPIRED; đơn còn hạn, đã thanh toán, có link VNPay còn hiệu lực thì giữ nguyên | FR-22 | Pass |
 | INT-44 | Tự hủy đơn | thời hạn rút ngắn còn 1 phút qua `ORDER_PAYMENT_TIMEOUT_MINUTES` | FR-22 | Pass |
+| INT-45 | Bổ sung | hủy đơn: chỉ chủ đơn được hủy; nhân viên xem được nhưng hủy hộ bị 403, đơn giữ nguyên | Hủy đơn (SRS chưa có FR riêng), FR-17 | Pass |
+| INT-46 | Bổ sung | FR-21: đổi tên và giá món sau khi đặt, đơn cũ vẫn giữ tên và giá lúc đặt | FR-21 | Pass |
+| INT-47 | Bổ sung | NFR-15: 20 yêu cầu đặt đơn đồng thời, tồn kho chỉ đủ 5 đơn → đúng 5 đơn thành công, kho không âm | NFR-15 | Pass |
 
 ## 3. Kiểm tra nhất quán đơn và thanh toán (NFR-16)
 
-Chạy trên database test ngay sau bộ 44 test (42 đơn, 27 giao dịch, 12 giao dịch `SUCCESS`):
+Chạy trên database test ngay sau bộ 44 test (42 đơn, 27 giao dịch, 12 giao dịch `SUCCESS`; lần chạy bổ sung 47 test: 50 đơn, 27 giao dịch, 12 `SUCCESS`, cũng 0 vi phạm):
 
 ```sql
 -- Đơn từ PAID trở đi nhưng không có Payment SUCCESS
