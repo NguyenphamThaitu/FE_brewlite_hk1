@@ -193,7 +193,7 @@ export default function MenuPage() {
                   >
                     <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
                       <img
-                        src="https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=400&auto=format&fit=crop&q=80"
+                        src="/drinks/ca-phe-sua-da.png"
                         alt="Cà Phê Phin Sữa"
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       />
@@ -220,7 +220,7 @@ export default function MenuPage() {
                   >
                     <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
                       <img
-                        src="https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&auto=format&fit=crop&q=80"
+                        src="/drinks/tra-dao-cam-sa.jpg"
                         alt="Trà Đào Cam Sả"
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       />
@@ -247,7 +247,7 @@ export default function MenuPage() {
                   >
                     <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
                       <img
-                        src="https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=400&auto=format&fit=crop&q=80"
+                        src="/drinks/matcha-latte.jpg"
                         alt="Matcha Latte"
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       />
@@ -514,12 +514,9 @@ export default function MenuPage() {
             <span className="font-extrabold text-sm text-white">
               BrewLite Coffee & Tea
             </span>
-            <span className="text-[#A89888]">
-              — Đồ án Công nghệ Phần mềm (SGU 2026-2027)
-            </span>
           </div>
           <p className="text-[#A89888]">
-            © 2026 BrewLite System. Phân hệ Frontend Next.js.
+            © 2026 BrewLite System.
           </p>
         </div>
       </footer>
@@ -544,17 +541,13 @@ export default function MenuPage() {
         }}
       />
 
-      {/* Order Confirmation Modal (FR-19, FR-29).
-          Chỉ gắn khi mở để mỗi lần mở là một lượt thanh toán mới: không giữ lại
-          màn hình "Đặt hàng thành công" của đơn trước (làm khóa các nút thanh toán). */}
-      {isOrderModalOpen && (
-        <OrderConfirmationModal
-          isOpen={isOrderModalOpen}
-          onClose={() => setIsOrderModalOpen(false)}
-          items={getStoredCart()}
-          totalAmount={getStoredCart().reduce((sum, item) => sum + item.totalPrice, 0)}
-        />
-      )}
+      {/* Order Confirmation Modal (FR-19, FR-29) */}
+      <OrderConfirmationModal
+        isOpen={isOrderModalOpen}
+        onClose={() => setIsOrderModalOpen(false)}
+        items={getStoredCart()}
+        totalAmount={getStoredCart().reduce((sum, item) => sum + item.totalPrice, 0)}
+      />
      
 
       {/* Toast Notification: hiện giữa mép trên màn hình cho dễ thấy; pointer-events-none

@@ -3,19 +3,20 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrderConfirmationModal from "./OrderConfirmationModal";
 import { getStoredCart, saveCart } from "@/utils/cart";
-import { getStoredUser, saveSession } from "@/utils/auth";
+import { getStoredUser, PENDING_PAYMENT_KEY, saveSession } from "@/utils/auth";
 import { CartItem } from "@/types/product";
-import { createOrder, createMockPayment } from "@/utils/orders-api";
+import {
+  createOrder,
+  createMockPayment,
+  getMyWalletBalance,
+} from "@/utils/orders-api";
 
 vi.mock("@/utils/orders-api", () => ({
   createOrder: vi.fn(),
   createMockPayment: vi.fn(),
+  getMyWalletBalance: vi.fn(),
 }));
 
-// Không gọi GET /auth/me thật trong test: số dư lấy từ phiên lưu sẵn.
-vi.mock("@/utils/auth-api", () => ({
-  refreshCurrentUser: vi.fn().mockResolvedValue(undefined),
-}));
 
 const user = {
   id: 1,
@@ -55,6 +56,8 @@ describe("OrderConfirmationModal: đặt hàng bắt buộc đăng nhập (FR-18
     localStorage.clear();
     sessionStorage.clear();
     saveCart(items);
+
+    vi.mocked(getMyWalletBalance).mockResolvedValue({ walletBalance: 200000 });
 
     vi.mocked(createOrder).mockResolvedValue({
       id: 123,
@@ -134,6 +137,73 @@ expect(screen.getByTestId("order-code")).toHaveTextContent(/#BL-\d+/);
     expect(createOrder).not.toHaveBeenCalled();
     expect(getStoredCart()).toHaveLength(1);
   });
+
+  it("Bug 2: modal đóng (isOpen=false) khi chưa đăng nhập thì không hiện popup đăng nhập", () => {
+    render(
+      <OrderConfirmationModal
+        isOpen={false}
+        onClose={vi.fn()}
+        items={items}
+        totalAmount={70000}
+      />,
+    );
+
+    expect(screen.queryByTestId("order-login-required")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Bug 1: sau khi thanh toán xong, đóng rồi mở lại thì nút Xác nhận & Thanh toán hiện lại", async () => {
+    saveSession({ accessToken: "opaque-token", user });
+    const onClose = vi.fn();
+    const props = { onClose, items, totalAmount: 70000 };
+    const { rerender } = render(
+      <OrderConfirmationModal isOpen={true} {...props} />,
+    );
+
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+    fireEvent.click(await screen.findByTestId("order-finish-button"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    rerender(<OrderConfirmationModal isOpen={false} {...props} />);
+    saveCart(items);
+    rerender(<OrderConfirmationModal isOpen={true} {...props} />);
+
+    expect(screen.queryByTestId("order-success-title")).not.toBeInTheDocument();
+    expect(screen.getByTestId("confirm-order-submit")).toBeInTheDocument();
+  });
+
+  it("Bug 3: bỏ qua đơn chờ thanh toán của tài khoản khác (userId không khớp)", async () => {
+    saveSession({ accessToken: "opaque-token", user });
+    sessionStorage.setItem(
+      PENDING_PAYMENT_KEY,
+      JSON.stringify({
+        userId: 999,
+        orderId: 777,
+        idempotencyKey: "old-key",
+        itemsSignature: JSON.stringify([
+          { productId: 1, sizeId: 1, toppingIds: [], quantity: 2 },
+        ]),
+      }),
+    );
+    renderModal();
+
+    fireEvent.click(screen.getByTestId("confirm-order-submit"));
+    await screen.findByTestId("order-success-title");
+
+    expect(createOrder).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(createMockPayment).mock.calls[0][0]).toBe(123);
+  });
+
+  it("hiện số dư ví thực tế và cảnh báo khi không đủ tiền", async () => {
+    vi.mocked(getMyWalletBalance).mockResolvedValue({ walletBalance: 50000 });
+    saveSession({ accessToken: "opaque-token", user });
+    renderModal();
+
+    expect(await screen.findByTestId("wallet-balance")).toHaveTextContent(
+      /50\.000/,
+    );
+    expect(screen.getByTestId("wallet-insufficient")).toBeInTheDocument();
+  });
 });
 
 describe("OrderConfirmationModal: ví mô phỏng (FR-24)", () => {
@@ -151,6 +221,9 @@ describe("OrderConfirmationModal: ví mô phỏng (FR-24)", () => {
     saveCart(items);
     vi.mocked(createOrder).mockReset();
     vi.mocked(createMockPayment).mockReset();
+    // Số dư lấy từ phiên đăng nhập; GET /auth/me không trả về trong các test này
+    vi.mocked(getMyWalletBalance).mockReset();
+    vi.mocked(getMyWalletBalance).mockReturnValue(new Promise(() => {}));
     vi.mocked(createOrder).mockResolvedValue({
       id: 123,
       totalAmount: 70000,
@@ -239,6 +312,9 @@ describe("OrderConfirmationModal: thẻ mô phỏng (FR-25)", () => {
     saveCart(items);
     vi.mocked(createOrder).mockReset();
     vi.mocked(createMockPayment).mockReset();
+    // Số dư lấy từ phiên đăng nhập; GET /auth/me không trả về trong các test này
+    vi.mocked(getMyWalletBalance).mockReset();
+    vi.mocked(getMyWalletBalance).mockReturnValue(new Promise(() => {}));
     vi.mocked(createOrder).mockResolvedValue({ id: 123, totalAmount: 70000, status: "PENDING_PAYMENT" });
     saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 1000000 } });
   });

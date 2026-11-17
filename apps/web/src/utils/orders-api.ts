@@ -91,8 +91,44 @@ export function getMyOrders(page = 1, limit = 20) {
   return request("/orders/me?page=" + page + "&limit=" + limit);
 }
 
+export function cancelOrder(id: number) {
+  return request<{ id: number; status: string }>(`/orders/${id}/cancel`, {
+    method: "POST",
+  });
+}
+
+export function getMyWalletBalance() {
+  return request<{ walletBalance?: number }>("/auth/me");
+}
+
+/** Một dòng lịch sử đổi trạng thái đơn (FR-34), API trả kèm trong GET /orders/:id */
+export interface OrderStatusChange {
+  fromStatus: string | null;
+  toStatus: string;
+  reason: string;
+  changedAt: string;
+}
+
+/** Chi tiết đơn của khách, dùng cho trang theo dõi đơn (FR-31) */
+export interface OrderDetail {
+  id: number;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+  items: {
+    id: number;
+    productName: string;
+    sizeName: string;
+    toppings: { id: number; name: string; price: number }[];
+    quantity: number;
+    lineTotal: number;
+  }[];
+  payments?: { method: string; status: string; amount: number; paidAt: string | null }[];
+  statusHistory?: OrderStatusChange[];
+}
+
 export function getOrderDetail(id: number) {
-  return request(`/orders/${id}`);
+  return request<OrderDetail>(`/orders/${id}`);
 }
 
 export function createMockPayment(

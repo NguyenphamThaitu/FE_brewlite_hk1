@@ -67,6 +67,8 @@ vi.mock("@/utils/orders-api", () => ({
   createMockPayment: vi.fn(),
   getMyOrders: vi.fn(),
   getOrderDetail: vi.fn(),
+  getMyWalletBalance: vi.fn().mockResolvedValue({ walletBalance: 200000 }),
+  cancelOrder: vi.fn(),
 }));
 
 describe("E2E Test: Luồng đặt món và thanh toán mô phỏng BrewLite", () => {
@@ -261,6 +263,8 @@ vi.mocked(productsService.fetchProducts).mockResolvedValue(
 
     expect(screen.getByTestId("order-code")).toHaveTextContent(/#BL-/);
     expect(screen.getByTestId("order-status-badge")).toBeInTheDocument();
+    // Bước cuối của luồng: Thanh toán → Theo dõi đơn (FR-31)
+    expect(screen.getByTestId("track-order-link")).toHaveAttribute("href", "/orders/101");
     expect(
       screen.getByText(/Bàn số 05 - Tầng 1/)
     ).toBeInTheDocument();

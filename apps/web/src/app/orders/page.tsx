@@ -1,10 +1,12 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { getMyOrders } from "@/utils/orders-api";
-import { getToken } from "@/utils/auth";
+import { useRouter } from "next/navigation";
+import Header from "@/components/Header";
+import { cancelOrder, getMyOrders } from "@/utils/orders-api";
+import { getToken, PENDING_PAYMENT_KEY } from "@/utils/auth";
 
 interface OrderItem {
   id: number;
@@ -41,33 +43,69 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: "Đã hủy",
 };
 
+const CANCELLABLE_STATUSES = ["PENDING_PAYMENT", "PAYMENT_FAILED"];
+
 export default function OrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [cancelError, setCancelError] = useState("");
+
+  const loadOrders = useCallback(async () => {
+    try {
+      if (!getToken()) {
+        throw new Error("Vui lòng đăng nhập để xem lịch sử đơn hàng.");
+      }
+
+      const result = (await getMyOrders()) as OrderListResponse;
+      setOrders(result.items);
+      setError("");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Không thể tải lịch sử đơn hàng.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadOrders() {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadOrders();
+  }, [loadOrders]);
+
+  const handleCancel = async (orderId: number) => {
+    if (!window.confirm(`Bạn chắc chắn muốn hủy đơn #${orderId}?`)) return;
+
+    setCancelError("");
+    setCancellingId(orderId);
+
+    try {
+      await cancelOrder(orderId);
+
+      // Đơn đã hủy thì không còn thanh toán lại được: bỏ đơn chờ thanh toán đang lưu.
       try {
-        if (!getToken()) {
-          throw new Error("Vui lòng đăng nhập để xem lịch sử đơn hàng.");
+        const saved = sessionStorage.getItem(PENDING_PAYMENT_KEY);
+        if (saved && (JSON.parse(saved) as { orderId?: number }).orderId === orderId) {
+          sessionStorage.removeItem(PENDING_PAYMENT_KEY);
         }
-
-        const result = (await getMyOrders()) as OrderListResponse;
-        setOrders(result.items);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Không thể tải lịch sử đơn hàng.",
-        );
-      } finally {
-        setLoading(false);
+      } catch {
+        sessionStorage.removeItem(PENDING_PAYMENT_KEY);
       }
-    }
 
-    loadOrders();
-  }, []);
+      await loadOrders();
+    } catch (err) {
+      setCancelError(
+        err instanceof Error ? err.message : "Hủy đơn thất bại, vui lòng thử lại.",
+      );
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("vi-VN", {
@@ -76,7 +114,10 @@ export default function OrdersPage() {
     }).format(price);
 
   return (
-    <main className="min-h-screen bg-[#FAF8F5] px-4 py-10">
+    <div className="min-h-screen bg-[#FAF8F5]">
+      {/* Trang chủ tự mở giỏ hàng khi có hash #cart */}
+      <Header onOpenCart={() => router.push("/#cart")} activeTab="history" />
+      <main className="px-4 py-10">
       <div className="mx-auto max-w-4xl">
         <Link href="/" className="text-sm text-amber-800 hover:underline">
           ← Quay lại trang chủ
@@ -102,6 +143,16 @@ export default function OrdersPage() {
               </Link>
             </div>
           </div>
+        )}
+
+        {cancelError && (
+          <p
+            role="alert"
+            data-testid="cancel-order-error"
+            className="mt-6 rounded-xl bg-red-50 p-4 text-sm text-red-700"
+          >
+            {cancelError}
+          </p>
         )}
 
         {!loading && !error && orders.length === 0 && (
@@ -168,10 +219,33 @@ export default function OrdersPage() {
                   {formatPrice(order.totalAmount)}
                 </span>
               </div>
+
+              <div className="mt-4 flex flex-wrap justify-end gap-3">
+                <Link
+                  href={`/orders/${order.id}`}
+                  data-testid={`track-order-${order.id}`}
+                  className="rounded-full bg-amber-800 px-4 py-2 text-xs font-bold text-white transition hover:bg-amber-900"
+                >
+                  Theo dõi đơn
+                </Link>
+
+                {CANCELLABLE_STATUSES.includes(order.status) && (
+                  <button
+                    type="button"
+                    onClick={() => handleCancel(order.id)}
+                    disabled={cancellingId === order.id}
+                    data-testid={`cancel-order-${order.id}`}
+                    className="rounded-full border border-red-300 px-4 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {cancellingId === order.id ? "Đang hủy..." : "Hủy đơn"}
+                  </button>
+                )}
+              </div>
             </section>
           ))}
         </div>
       </div>
-    </main>
+      </main>
+    </div>
   );
 }

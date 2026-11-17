@@ -4,8 +4,8 @@ import AccountMenu from "./AccountMenu";
 import { getStoredUser, getToken, saveSession } from "@/utils/auth";
 
 // Không gọi GET /auth/me thật trong test: số dư lấy từ phiên lưu sẵn.
-vi.mock("@/utils/auth-api", () => ({
-  refreshCurrentUser: vi.fn().mockResolvedValue(undefined),
+vi.mock("@/utils/orders-api", () => ({
+  getMyWalletBalance: vi.fn(() => new Promise(() => {})),
 }));
 
 const user = { id: 1, email: "a@b.com", fullName: "Nguyễn Văn A", role: "CUSTOMER" as const };

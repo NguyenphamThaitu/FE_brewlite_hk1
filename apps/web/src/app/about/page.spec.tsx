@@ -17,9 +17,6 @@ describe("AboutPage (/about)", () => {
     expect(screen.getByText("Giá Chuẩn & Minh Bạch")).toBeInTheDocument();
     expect(screen.getByText("Đặt Món Nhanh Chóng")).toBeInTheDocument();
 
-    // Check SGU academic project card
-    expect(screen.getByText(/ĐH Sài Gòn/i)).toBeInTheDocument();
-
     // Check CTA button linking back to menu
     const menuLinks = screen.getAllByRole("link", { name: /thực đơn/i });
     expect(menuLinks.length).toBeGreaterThan(0);

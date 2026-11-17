@@ -1,4 +1,4 @@
-import { getToken, updateStoredUser, type AuthSession, type AuthUser } from "@/utils/auth";
+import type { AuthSession } from "@/utils/auth";
 import type { AuthFormValues } from "@/utils/auth-validation";
 
 // NEXT_PUBLIC_API_URL được nhúng lúc build (xem apps/web/Dockerfile và .env.example).
@@ -47,24 +47,6 @@ export const registerRequest = (v: Pick<AuthFormValues, "fullName" | "email" | "
     email: v.email,
     password: v.password,
   });
-
-/**
- * Lấy lại thông tin người dùng (kể cả số dư ví) từ GET /auth/me và cập nhật phiên đang lưu.
- * Lỗi mạng hoặc token hết hạn thì bỏ qua: giao diện vẫn dùng số dư đang lưu, API kiểm tra lại khi thanh toán.
- */
-export async function refreshCurrentUser(): Promise<void> {
-  const token = getToken();
-  if (!token) return;
-  try {
-    const res = await fetch(`${API_URL}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return;
-    updateStoredUser((await res.json()) as AuthUser);
-  } catch {
-    // không có mạng hoặc API chưa sẵn sàng
-  }
-}
 
 export type ServerFieldErrors = Partial<Record<"fullName" | "email" | "password", string>>;
 

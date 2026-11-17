@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ChevronDown, LogIn, LogOut, User, UserPlus } from "lucide-react";
-import { clearSession, getStoredUser, isSessionActive, subscribeAuth } from "@/utils/auth";
-import { refreshCurrentUser } from "@/utils/auth-api";
+import { clearSession, getStoredUser, isSessionActive, subscribeAuth, updateStoredUser } from "@/utils/auth";
+import { getMyWalletBalance } from "@/utils/orders-api";
 
 const formatVnd = (value: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
@@ -28,7 +28,12 @@ export default function AccountMenu() {
   // Mở menu thì lấy lại số dư ví mới nhất (vừa thanh toán xong hoặc phiên đăng nhập cũ chưa có số dư).
   const userId = user?.id;
   useEffect(() => {
-    if (open && userId) void refreshCurrentUser();
+    if (!open || !userId) return;
+    getMyWalletBalance()
+      .then((me) => {
+        if (typeof me.walletBalance === "number") updateStoredUser({ id: userId, walletBalance: me.walletBalance });
+      })
+      .catch(() => {}); // lỗi mạng: vẫn hiện số dư đang lưu
   }, [open, userId]);
 
   // Đóng menu khi bấm ra ngoài hoặc nhấn Esc.

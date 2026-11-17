@@ -9,13 +9,12 @@ import {
   clearSession,
   getStoredUser,
   isSessionActive,
+  PENDING_PAYMENT_KEY,
   subscribeAuth,
   updateStoredUser,
 } from "@/utils/auth";
-import { refreshCurrentUser } from "@/utils/auth-api";
 import {
-Lock,
-CheckCircle2,
+  Lock,
   X,
   ShoppingBag,
   ArrowRight,
@@ -25,6 +24,7 @@ CheckCircle2,
 import {
   createOrder,
   createMockPayment,
+  getMyWalletBalance,
   MockPaymentMethod,
 } from "@/utils/orders-api";
 
@@ -36,12 +36,11 @@ interface OrderConfirmationModalProps {
 }
 
 interface PendingPayment {
+  userId: number;
   orderId: number;
   idempotencyKey: string;
   itemsSignature: string;
 }
-
-const PENDING_PAYMENT_KEY = "brewlite_pending_payment";
 
 function createIdempotencyKey() {
   return typeof crypto !== "undefined" &&
@@ -56,9 +55,6 @@ export default function OrderConfirmationModal({
   items,
   totalAmount,
 }: OrderConfirmationModalProps) {
-const [isSuccess, setIsSuccess] = useState<boolean>(false);
-const [orderCode, setOrderCode] = useState<string>("");
-
 const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
 
 // Tên người nhận mặc định là tên tài khoản đang đăng nhập.
@@ -81,12 +77,40 @@ const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
 // Số tiền đã trừ từ ví và số dư còn lại sau khi thanh toán ví thành công.
 const [walletPaid, setWalletPaid] = useState<{ amount: number; balance: number } | null>(null);
+  const [wallet, setWallet] = useState<{ userId: number; balance: number } | null>(null);
 
-// Lấy số dư ví mới nhất mỗi lần mở (số dư có thể đã đổi ở tab hoặc thiết bị khác).
-const userId = user?.id;
-useEffect(() => {
-  if (isOpen && userId) void refreshCurrentUser();
-}, [isOpen, userId]);
+  // Lấy số dư ví thực tế mỗi lần mở modal (cần GET /auth/me trả walletBalance).
+  const userId = user?.id;
+  // Chỉ dùng số dư đã lấy cho đúng tài khoản đang đăng nhập; trong lúc chờ API thì dùng số dư lưu lúc đăng nhập.
+  const walletBalance =
+    wallet && wallet.userId === userId ? wallet.balance : (user?.walletBalance ?? null);
+  useEffect(() => {
+    if (!isOpen || !userId) return;
+    let cancelled = false;
+    getMyWalletBalance()
+      .then((me) => {
+        if (!cancelled && typeof me.walletBalance === "number") {
+          setWallet({ userId, balance: me.walletBalance });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, userId]);
+
+// Đóng modal luôn xóa trạng thái "thành công"/lỗi của lần đặt trước (Bug 1).
+const handleCloseModal = () => {
+  if (isSubmitting) return;
+  setSuccessMessage("");
+  setSuccessOrderId(null);
+  setErrorMessage("");
+  setWalletPaid(null);
+  onClose();
+};
+
+// Modal đóng thì không render gì (kể cả popup yêu cầu đăng nhập).
+if (!isOpen) return null;
 
 // Đặt hàng bắt buộc phải đăng nhập và phiên còn hiệu lực.
 if (!user || !isSessionActive()) {
@@ -100,7 +124,7 @@ if (!user || !isSessionActive()) {
     >
       <div
         className="fixed inset-0 bg-[#2B1B12]/60 backdrop-blur-xs"
-        onClick={onClose}
+        onClick={handleCloseModal}
       />
       <div className="relative w-full max-w-sm bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE0D2] p-8 text-center space-y-5 z-10">
         <div className="w-14 h-14 rounded-full bg-[#FFF4EB] text-[#E06D20] mx-auto flex items-center justify-center">
@@ -133,7 +157,7 @@ if (!user || !isSessionActive()) {
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseModal}
             className="text-xs font-bold text-[#786354] hover:text-[#E06D20] transition py-1.5"
           >
             Để sau
@@ -152,7 +176,6 @@ const formatPrice = (price: number) => {
 };
 
 // Ví mô phỏng (FR-24): số dư không đủ thì không cho thanh toán bằng ví.
-const walletBalance = user.walletBalance;
 const walletShort =
   paymentMethod === "WALLET" &&
   typeof walletBalance === "number" &&
@@ -252,6 +275,7 @@ const handleConfirmOrder = async () => {
           const parsed = JSON.parse(saved) as PendingPayment;
 
           if (
+            parsed.userId === user.id &&
             parsed.orderId &&
             parsed.idempotencyKey &&
             parsed.itemsSignature === itemsSignature
@@ -269,6 +293,7 @@ const handleConfirmOrder = async () => {
         });
 
         pending = {
+          userId: user.id,
           orderId: order.id,
           idempotencyKey: createIdempotencyKey(),
           itemsSignature,
@@ -304,9 +329,15 @@ const handleConfirmOrder = async () => {
         clearCart();
 
         setSuccessOrderId(payment.orderId);
-setSuccessMessage(payment.message);
-        if (payment.method === "WALLET" && typeof balanceAfter === "number") {
-          setWalletPaid({ amount: payment.amount, balance: balanceAfter });
+        setSuccessMessage(payment.message);
+        setCardNumber("");
+        setCardExpiry("");
+        setCardCvv("");
+        if (typeof balanceAfter === "number") {
+          setWallet({ userId: user.id, balance: balanceAfter });
+          if (payment.method === "WALLET") {
+            setWalletPaid({ amount: payment.amount, balance: balanceAfter });
+          }
         }
       } else {
         // Thanh toán thất bại vẫn lưu đơn để khách có thể thử lại.
@@ -320,6 +351,10 @@ setSuccessMessage(payment.message);
           PENDING_PAYMENT_KEY,
           JSON.stringify(retryPayment),
         );
+
+        if (typeof payment.walletBalance === "number") {
+          setWallet({ userId: user.id, balance: payment.walletBalance });
+        }
 
         setErrorMessage(
           payment.errorCode === "WALLET_INSUFFICIENT_BALANCE" &&
@@ -341,8 +376,6 @@ setSuccessMessage(payment.message);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <div
       role="dialog"
@@ -352,9 +385,7 @@ setSuccessMessage(payment.message);
     >
       <div
         className="fixed inset-0 bg-[#2B1B12]/60 backdrop-blur-xs"
-        onClick={() => {
-          if (!isSubmitting) onClose();
-        }}
+        onClick={handleCloseModal}
       />
 
       <div className="relative w-full max-w-lg bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE0D2] overflow-hidden z-10 flex flex-col max-h-[90vh]">
@@ -379,7 +410,7 @@ setSuccessMessage(payment.message);
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseModal}
             disabled={isSubmitting}
             aria-label="Đóng popup xác nhận"
             className="w-8 h-8 rounded-full flex items-center justify-center text-[#786354] hover:bg-[#FAF4ED] transition disabled:opacity-50"
@@ -691,6 +722,16 @@ setSuccessMessage(payment.message);
       Đã tiếp nhận (Chờ pha chế)
     </p>
 
+    {successOrderId && (
+      <Link
+        href={`/orders/${successOrderId}`}
+        data-testid="track-order-link"
+        className="block text-sm font-bold text-[#E06D20] underline"
+      >
+        Theo dõi đơn hàng →
+      </Link>
+    )}
+
     <p className="text-sm text-[#4A3528]">
       Hình thức nhận món: {pickupNote}
     </p>
@@ -708,7 +749,7 @@ setSuccessMessage(payment.message);
         <div className="p-4 sm:p-6 bg-white border-t border-[#EAE0D2] flex gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseModal}
             data-testid={successMessage ? "order-finish-button" : undefined}
             disabled={isSubmitting}
             className="px-5 py-3 rounded-full border border-[#D8CDC0] text-[#4A3528] hover:bg-[#FAF4ED] text-xs font-bold transition disabled:opacity-50"
