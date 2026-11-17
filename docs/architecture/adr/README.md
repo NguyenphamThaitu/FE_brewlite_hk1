@@ -14,7 +14,7 @@ của ADR đã `Accepted`; khi đổi quyết định, tạo ADR mới và đán
 | [005](005-payment-gateway-idempotency.md) | Thanh toán qua VNPay sandbox, chống xử lý trùng | Superseded một phần by ADR-008 | Văn Trường |
 | [006](006-inventory-transaction-row-locking.md) | Tồn kho theo nguyên liệu, transaction + khóa dòng | Accepted | Văn Trường |
 | [007](007-ci-cd-github-actions.md) | CI/CD bằng GitHub Actions, image tag theo commit SHA | Accepted (CI: PR #4, #21 · CD: PR #57) | Văn Trường |
-| [008](008-simulated-wallet-card-payment.md) | Thanh toán Ví/Thẻ mô phỏng, `Idempotency-Key`, trạng thái `PAYMENT_FAILED` | Accepted (PR #16) | Văn Trường |
+| [008](008-simulated-wallet-card-payment.md) | Thanh toán Ví/Thẻ mô phỏng, `Idempotency-Key`, trạng thái `PAYMENT_FAILED` | Accepted (PR #16, #18; cập nhật 17/11) | Văn Trường |
 | [009](009-web-mobile-first-without-pwa.md) | Frontend web Next.js mobile-first, không làm PWA | Accepted (chờ lưu xác nhận của giảng viên) | Văn Trường |
 | [010](010-config-health-logging.md) | Cấu hình qua biến môi trường, `GET /health` kiểm tra DB, log ra stdout | Accepted | Văn Trường |
 

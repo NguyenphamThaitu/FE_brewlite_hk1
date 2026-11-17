@@ -1,6 +1,10 @@
 # ADR-008: Thanh toán Ví/Thẻ mô phỏng, Idempotency-Key và trạng thái PAYMENT_FAILED
 
-- Trạng thái: Accepted (hiện thực ở PR #16)
+- Trạng thái: Accepted (hiện thực ở PR #16 và PR #18)
+- Cập nhật 2026-11-17: số dư ví mặc định của tài khoản mới nâng từ 200.000đ lên 1.000.000đ
+  (migration `20261117090000_wallet_default_1m`, tài khoản đã có giữ nguyên số dư). API trả `walletBalance`
+  trong thông tin người dùng (`POST /auth/login`, `POST /auth/register`, `GET /auth/me`) để web hiển thị số dư,
+  số dư sau thanh toán, và khóa thanh toán bằng ví khi không đủ tiền.
 - Ngày: 2026-11-11
 - Thay thế một phần: ADR-005 (phương thức thanh toán chính, cách xử lý thanh toán lỗi, cách chống trùng)
 - Liên quan: FR-24, FR-25, FR-26, FR-27, FR-39, NFR-16, NFR-23, UC-01, class diagram (`Payment`, `User`)
@@ -19,7 +23,7 @@ ADR-005 chọn VNPay sandbox làm cổng thanh toán duy nhất. SRS đã chốt
 
 - **Phương thức chính là mô phỏng**: `POST /payments` (JWT), body `{ orderId, method, card? }`,
   `method` là `WALLET` hoặc `CARD`. Kết quả trả ngay trong response, không cần callback.
-  - Ví: mỗi `User` có `walletBalance` (mặc định 200.000đ). Đủ tiền thì trừ ví; thiếu thì
+  - Ví: mỗi `User` có `walletBalance` (mặc định 1.000.000đ; trước 17/11/2026 là 200.000đ). Đủ tiền thì trừ ví; thiếu thì
     `FAILED`, mã `WALLET_INSUFFICIENT_BALANCE`.
   - Thẻ: kết quả theo số thẻ test cố định (`4111111111111111`, `5555555555554444` thành công;
     `4000000000000002` bị từ chối; `4000000000009995` không đủ số dư; thẻ hết hạn bị từ chối).
