@@ -15,7 +15,6 @@ import {
   Award,
   ArrowRight,
   CheckCircle2,
-  Cpu,
 } from "lucide-react";
 
 export default function AboutPage() {
@@ -217,46 +216,8 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Academic Engineering Context Card */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-gradient-to-br from-[#2B1B12] to-[#452817] text-[#FAF5EE] rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-[#E06D20]/15 blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#E06D20] text-xs font-bold border border-white/15">
-              <Cpu className="w-3.5 h-3.5" />
-              <span>Dự án Công nghệ Phần mềm — ĐH Sài Gòn (SGU 2026)</span>
-            </div>
-
-            <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Nền tảng BrewLite Web App & Cloud API
-            </h3>
-
-            <p className="text-xs sm:text-sm text-[#D4C3B2] leading-relaxed">
-              BrewLite được phát triển như một sản phẩm thực tế trong học phần Công nghệ Phần mềm tại Trường Đại học Sài Gòn.
-              Ứng dụng tuân thủ mô hình kiến trúc Monorepo tiên tiến:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                <p className="font-extrabold text-[#E06D20]">Frontend App</p>
-                <p className="text-[11px] text-[#B8A796] mt-0.5">Next.js 16 (App Router) + React 19 + Tailwind CSS</p>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                <p className="font-extrabold text-[#E06D20]">Backend & Database</p>
-                <p className="text-[11px] text-[#B8A796] mt-0.5">NestJS + Prisma ORM + PostgreSQL 16</p>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                <p className="font-extrabold text-[#E06D20]">CI/CD & Cloud</p>
-                <p className="text-[11px] text-[#B8A796] mt-0.5">GitHub Actions + Docker Standalone + Render Deploy</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Bottom Banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="bg-[#FFF4EB] border-2 border-[#E06D20]/30 rounded-3xl p-8 sm:p-10 text-center space-y-4">
           <h3 className="text-2xl sm:text-3xl font-black text-[#2B1B12]">
             Sẵn sàng thưởng thức đồ uống chuẩn gu?
@@ -286,12 +247,9 @@ export default function AboutPage() {
             <span className="font-extrabold text-sm text-white">
               BrewLite Coffee & Tea
             </span>
-            <span className="text-[#A89888]">
-              — Đồ án Công nghệ Phần mềm (SGU 2026-2027)
-            </span>
           </div>
           <p className="text-[#A89888]">
-            © 2026 BrewLite System. Phân hệ Frontend Next.js.
+            © 2026 BrewLite System.
           </p>
         </div>
       </footer>

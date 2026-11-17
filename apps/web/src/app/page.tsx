@@ -514,12 +514,9 @@ export default function MenuPage() {
             <span className="font-extrabold text-sm text-white">
               BrewLite Coffee & Tea
             </span>
-            <span className="text-[#A89888]">
-              — Đồ án Công nghệ Phần mềm (SGU 2026-2027)
-            </span>
           </div>
           <p className="text-[#A89888]">
-            © 2026 BrewLite System. Phân hệ Frontend Next.js.
+            © 2026 BrewLite System.
           </p>
         </div>
       </footer>
