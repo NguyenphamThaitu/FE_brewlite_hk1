@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function RegisterPage() {
   // AuthForm đọc ?next= bằng useSearchParams nên cần bọc trong Suspense
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FAF8F5]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FBF7F0]" />}>
       <AuthForm mode="register" />
     </Suspense>
   );

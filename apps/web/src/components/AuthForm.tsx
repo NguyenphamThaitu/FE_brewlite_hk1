@@ -19,7 +19,7 @@ type Mode = "login" | "register";
 
 const FIELD_ORDER: (keyof AuthFormValues)[] = ["fullName", "email", "password", "confirm"];
 
-// Giao diện lấy cảm hứng từ Highlands Coffee: đỏ đậm #a6192e + nền kem ấm #FAF8F5
+// Giao diện đồng bộ thương hiệu BrewLite Specialty Coffee: Nâu Espresso #2B1B12 + Cam Hổ Phách #E06D20 + Nền kem ấm #FBF7F0
 
 interface FieldProps {
   id: string;
@@ -44,11 +44,11 @@ function Field({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-neutral-800">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-bold text-[#3D291D]">
         {label}
       </label>
       <div className="relative">
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A8878]">
           {icon}
         </span>
         <input
@@ -64,7 +64,7 @@ function Field({
           spellCheck={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className={`h-12 w-full rounded-xl border bg-white pl-11 ${isPassword ? "pr-12" : "pr-4"} text-base text-neutral-900 placeholder:text-neutral-400 outline-none transition focus:border-[#a6192e] focus:ring-4 focus:ring-[#a6192e]/15 disabled:bg-neutral-100 ${error ? "border-red-500" : "border-neutral-300"}`}
+          className={`h-12 w-full rounded-xl border bg-white pl-11 ${isPassword ? "pr-12" : "pr-4"} text-sm sm:text-base font-medium text-[#2B1B12] placeholder:text-[#A89888] outline-none transition focus:border-[#E06D20] focus:ring-4 focus:ring-[#E06D20]/15 disabled:bg-[#FAF6F0] ${error ? "border-red-500" : "border-[#D8CDC0]"}`}
         />
         {isPassword && (
           <button
@@ -72,18 +72,18 @@ function Field({
             onClick={() => setVisible((v) => !v)}
             aria-label={visible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
             aria-pressed={visible}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-neutral-500 transition hover:text-[#a6192e]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-[#786354] transition hover:text-[#E06D20]"
           >
             {visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           </button>
         )}
       </div>
       {error ? (
-        <p id={`${id}-error`} className="mt-1.5 text-sm text-red-700">
+        <p id={`${id}-error`} className="mt-1.5 text-sm font-medium text-red-700">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="mt-1.5 text-xs text-neutral-500">
+        <p id={`${id}-hint`} className="mt-1.5 text-xs text-[#786354]">
           {hint}
         </p>
       ) : null}
@@ -160,34 +160,44 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
   const tabClass = (active: boolean) =>
     `rounded-xl px-4 py-2.5 text-center transition ${
-      active ? "bg-[#a6192e] text-white shadow-sm" : "text-neutral-600 hover:text-[#a6192e]"
+      active ? "bg-[#E06D20] text-white shadow-sm" : "text-[#4A3528] hover:text-[#E06D20]"
     }`;
 
   return (
-    <div lang="vi" className="min-h-screen bg-[#FAF8F5] lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+    <div lang="vi" className="min-h-screen bg-[#FBF7F0] text-[#2B1B12] font-sans lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       {/* Khung thương hiệu */}
-      <aside className="bg-gradient-to-br from-[#b81d33] to-[#7d1020] px-6 py-6 text-white lg:flex lg:flex-col lg:justify-center lg:px-14 lg:py-16">
-        <Link href="/" className="inline-flex items-center gap-3" aria-label="BrewLite – về trang chủ">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+      <aside className="relative overflow-hidden bg-gradient-to-br from-[#2B1B12] via-[#3A2317] to-[#4A2C1B] px-6 py-6 text-white lg:flex lg:flex-col lg:justify-center lg:px-14 lg:py-16">
+        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-[#E06D20]/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-[#D9A066]/10 blur-3xl" />
+
+        <Link href="/" className="relative z-10 inline-flex items-center gap-3.5 group" aria-label="BrewLite – về trang chủ">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#E06D20] to-[#B84D0B] text-white shadow-md shadow-orange-950/30 transition-transform duration-300 group-hover:scale-105">
             <Coffee className="h-6 w-6" />
           </span>
-          <span className="text-2xl font-extrabold tracking-tight">BrewLite</span>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-black tracking-tight text-white">
+              Brew<span className="text-[#E06D20]">Lite</span>
+            </span>
+            <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#F4DEC9]">
+              Coffee & Tea
+            </span>
+          </div>
         </Link>
 
-        <div className="hidden lg:block">
-          <h2 className="mt-12 text-4xl font-extrabold leading-tight">
+        <div className="relative z-10 hidden lg:block">
+          <h2 className="mt-12 text-4xl font-black leading-tight text-[#FAF5EE]">
             Cà phê đậm vị,
             <br />
-            đặt món thật nhanh.
+            <span className="text-[#E06D20]">đặt món thật nhanh.</span>
           </h2>
-          <ul className="mt-8 space-y-4 text-base text-white/90">
+          <ul className="mt-8 space-y-4 text-base font-medium text-[#E6D9C8]">
             {[
               "Đặt món và thanh toán không cần tiền mặt",
               "Theo dõi trạng thái đơn hàng của bạn",
               "Giỏ hàng luôn được giữ nguyên khi đăng nhập",
             ].map((text) => (
               <li key={text} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/20">
+                <span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full border border-[#E06D20]/30 bg-[#E06D20]/20 text-[#E06D20]">
                   <Check className="h-4 w-4" />
                 </span>
                 {text}
@@ -199,10 +209,10 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
       {/* Form */}
       <main className="flex items-start justify-center px-4 py-8 sm:px-8 lg:items-center">
-        <div className="w-full max-w-md rounded-3xl border border-neutral-200 bg-white p-6 shadow-xl shadow-red-900/5 sm:p-8">
+        <div className="w-full max-w-md rounded-3xl border border-[#EAE0D2] bg-white p-6 shadow-xl shadow-stone-900/5 sm:p-8">
           <nav
             aria-label="Chọn đăng nhập hoặc đăng ký"
-            className="grid grid-cols-2 gap-1 rounded-2xl bg-[#FAF8F5] p-1 text-sm font-bold"
+            className="grid grid-cols-2 gap-1 rounded-2xl border border-[#E6DBC9] bg-[#F3ECE1] p-1 text-sm font-bold"
           >
             <Link href={`/login${suffix}`} aria-current={!isRegister ? "page" : undefined} className={tabClass(!isRegister)}>
               Đăng nhập
@@ -212,23 +222,23 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             </Link>
           </nav>
 
-          <h1 className="mt-6 text-2xl font-extrabold text-neutral-900">
+          <h1 className="mt-6 text-2xl font-black text-[#2B1B12]">
             {isRegister ? "Tạo tài khoản BrewLite" : "Chào mừng bạn trở lại"}
           </h1>
-          <p className="mt-1 text-sm text-neutral-600">
+          <p className="mt-1 text-sm font-medium text-[#786354]">
             {isRegister
               ? "Chỉ mất chưa đầy một phút để bắt đầu đặt món."
               : "Đăng nhập để đặt món và theo dõi đơn hàng."}
           </p>
 
           {fromCheckout && (
-            <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+            <div className="mt-4 rounded-xl border border-[#F4DEC9] bg-[#FFF4EB] px-4 py-3 text-sm font-medium text-[#9A521E]" role="status">
               Bạn cần đăng nhập để đặt đơn. Giỏ hàng của bạn vẫn được giữ nguyên.
             </div>
           )}
 
           {formError && (
-            <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-800" role="alert">
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800" role="alert">
               {formError}
             </div>
           )}
@@ -293,7 +303,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             <button
               type="submit"
               disabled={submitting}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#a6192e] text-base font-bold text-white shadow-lg shadow-red-900/20 transition hover:bg-[#861424] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#a6192e]/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#E06D20] text-base font-extrabold text-white shadow-lg shadow-orange-950/20 transition hover:bg-[#C85A12] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#E06D20]/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {submitting && (
                 <span
@@ -307,18 +317,18 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             </button>
           </form>
 
-          <p className="mt-5 text-center text-sm text-neutral-600">
+          <p className="mt-5 text-center text-sm text-[#786354]">
             {isRegister ? "Đã có tài khoản?" : "Chưa có tài khoản?"}{" "}
             <Link
               href={isRegister ? `/login${suffix}` : `/register${suffix}`}
-              className="font-bold text-[#a6192e] hover:underline"
+              className="font-extrabold text-[#E06D20] hover:text-[#C85A12] hover:underline"
             >
               {isRegister ? "Đăng nhập" : "Đăng ký ngay"}
             </Link>
           </p>
 
           <p className="mt-3 text-center text-sm">
-            <Link href="/" className="text-neutral-500 hover:text-[#a6192e] hover:underline">
+            <Link href="/" className="font-semibold text-[#786354] hover:text-[#E06D20] hover:underline">
               ← Tiếp tục xem thực đơn
             </Link>
           </p>
