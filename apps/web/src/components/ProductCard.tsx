@@ -55,10 +55,6 @@ export default function ProductCard({ product, onSelect }: ProductCardProps) {
               </span>
             )}
           </div>
-
-          <span className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#2B1B12]/80 text-[#FAF5EE] backdrop-blur-xs border border-white/15">
-            {product.categoryName}
-          </span>
         </div>
 
         {/* Content */}

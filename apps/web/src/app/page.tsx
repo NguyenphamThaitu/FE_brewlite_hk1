@@ -193,7 +193,7 @@ export default function MenuPage() {
                   >
                     <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
                       <img
-                        src="https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=400&auto=format&fit=crop&q=80"
+                        src="/drinks/ca-phe-sua-da.png"
                         alt="Cà Phê Phin Sữa"
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       />
@@ -220,7 +220,7 @@ export default function MenuPage() {
                   >
                     <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
                       <img
-                        src="https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&auto=format&fit=crop&q=80"
+                        src="/drinks/tra-dao-cam-sa.jpg"
                         alt="Trà Đào Cam Sả"
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       />
@@ -247,7 +247,7 @@ export default function MenuPage() {
                   >
                     <div className="w-full aspect-square rounded-xl overflow-hidden bg-[#F4ECE1] mb-2 shadow-inner">
                       <img
-                        src="https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=400&auto=format&fit=crop&q=80"
+                        src="/drinks/matcha-latte.jpg"
                         alt="Matcha Latte"
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       />

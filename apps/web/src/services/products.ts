@@ -6,28 +6,32 @@ export const getApiBaseUrl = (): string => {
   return (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/$/, "");
 };
 
-const DEFAULT_DRINK_IMAGE =
-  "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&auto=format&fit=crop&q=80";
+const DEFAULT_DRINK_IMAGE = "/drinks/ca-phe-sua-da.png";
 
 const getFallbackImage = (name: string): string => {
   const lower = name.toLowerCase();
   if (lower.includes("matcha")) {
-    return "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=600&auto=format&fit=crop&q=80";
+    return "/drinks/matcha-latte.jpg";
   }
   if (lower.includes("trà sữa")) {
-    return "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&auto=format&fit=crop&q=80";
+    return "/drinks/tra-sua-tran-chau.png";
   }
   if (lower.includes("đào") || lower.includes("trà")) {
-    return "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&auto=format&fit=crop&q=80";
+    return "/drinks/tra-dao-cam-sa.jpg";
   }
   if (lower.includes("bạc xỉu")) {
-    return "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=600&auto=format&fit=crop&q=80";
+    return "/drinks/bac-xiu.jpg";
+  }
+  if (lower.includes("cà phê")) {
+    return "/drinks/ca-phe-sua-da.png";
   }
   return DEFAULT_DRINK_IMAGE;
 };
 
 const inferCategoryName = (name: string, explicitCategory?: string | null): string => {
-  if (explicitCategory?.trim()) return explicitCategory.trim();
+  if (explicitCategory?.trim() && explicitCategory.trim().toLowerCase() !== "drink") {
+    return explicitCategory.trim();
+  }
   const lower = name.toLowerCase();
   if (lower.includes("matcha") || lower.includes("trà")) {
     return "Trà & Matcha";
