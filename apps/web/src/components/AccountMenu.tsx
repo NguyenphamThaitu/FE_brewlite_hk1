@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ChevronDown, LogIn, LogOut, User, UserPlus } from "lucide-react";
 import { clearSession, getStoredUser, isSessionActive, subscribeAuth } from "@/utils/auth";
+import { refreshCurrentUser } from "@/utils/auth-api";
+
+const formatVnd = (value: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
 /**
  * Nút "Tài khoản" trên Header.
@@ -20,6 +24,12 @@ export default function AccountMenu() {
   useEffect(() => {
     if (user && !isSessionActive()) clearSession();
   }, [user]);
+
+  // Mở menu thì lấy lại số dư ví mới nhất (vừa thanh toán xong hoặc phiên đăng nhập cũ chưa có số dư).
+  const userId = user?.id;
+  useEffect(() => {
+    if (open && userId) void refreshCurrentUser();
+  }, [open, userId]);
 
   // Đóng menu khi bấm ra ngoài hoặc nhấn Esc.
   useEffect(() => {
@@ -82,6 +92,14 @@ export default function AccountMenu() {
                 </p>
                 <p className="mt-0.5 text-sm font-extrabold text-[#2B1B12] truncate">{user.fullName}</p>
                 <p className="text-xs text-[#786354] truncate">{user.email}</p>
+                {typeof user.walletBalance === "number" && (
+                  <p className="mt-2 flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#786354]">Số dư ví</span>
+                    <span data-testid="account-wallet-balance" className="font-black text-[#E06D20]">
+                      {formatVnd(user.walletBalance)}
+                    </span>
+                  </p>
+                )}
               </div>
               <button type="button" role="menuitem" onClick={handleLogout} className={itemClass}>
                 <LogOut className="w-4 h-4" />

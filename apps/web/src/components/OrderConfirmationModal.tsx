@@ -1,11 +1,18 @@
 ﻿
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { CartItem, Topping } from "@/types/product";
 import { clearCart } from "@/utils/cart";
-import { clearSession, getStoredUser, isSessionActive, subscribeAuth } from "@/utils/auth";
+import {
+  clearSession,
+  getStoredUser,
+  isSessionActive,
+  subscribeAuth,
+  updateStoredUser,
+} from "@/utils/auth";
+import { refreshCurrentUser } from "@/utils/auth-api";
 import {
 Lock,
 CheckCircle2,
@@ -72,6 +79,14 @@ const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
+// Số tiền đã trừ từ ví và số dư còn lại sau khi thanh toán ví thành công.
+const [walletPaid, setWalletPaid] = useState<{ amount: number; balance: number } | null>(null);
+
+// Lấy số dư ví mới nhất mỗi lần mở (số dư có thể đã đổi ở tab hoặc thiết bị khác).
+const userId = user?.id;
+useEffect(() => {
+  if (isOpen && userId) void refreshCurrentUser();
+}, [isOpen, userId]);
 
 // Đặt hàng bắt buộc phải đăng nhập và phiên còn hiệu lực.
 if (!user || !isSessionActive()) {
@@ -136,6 +151,16 @@ const formatPrice = (price: number) => {
   }).format(price);
 };
 
+// Ví mô phỏng (FR-24): số dư không đủ thì không cho thanh toán bằng ví.
+const walletBalance = user.walletBalance;
+const walletShort =
+  paymentMethod === "WALLET" &&
+  typeof walletBalance === "number" &&
+  walletBalance < totalAmount;
+
+const walletShortMessage = (balance: number, amount: number) =>
+  `Số dư ví không đủ: đơn cần ${formatPrice(amount)}, ví còn ${formatPrice(balance)}. Vui lòng chọn Thẻ ngân hàng để thanh toán.`;
+
 const handleConfirmOrder = async () => {
   // Kiểm tra phiên đăng nhập còn hiệu lực trước khi đặt hàng.
   if (!isSessionActive()) {
@@ -149,6 +174,11 @@ const handleConfirmOrder = async () => {
   }
 
   if (successMessage) return;
+
+  if (walletShort && typeof walletBalance === "number") {
+    setErrorMessage(walletShortMessage(walletBalance, totalAmount));
+    return;
+  }
 
   if (paymentMethod === "CARD" && !/^\d{16}$/.test(cardNumber)) {
     setErrorMessage("Số thẻ phải gồm đúng 16 chữ số.");
@@ -275,12 +305,21 @@ const handleConfirmOrder = async () => {
           : undefined,
       );
 
+      // API trả số dư ví sau giao dịch (kể cả khi thất bại): cập nhật để giao diện hiển thị đúng.
+      const balanceAfter = payment.walletBalance;
+      if (typeof balanceAfter === "number") {
+        updateStoredUser({ walletBalance: balanceAfter });
+      }
+
       if (payment.paymentStatus === "SUCCESS") {
         sessionStorage.removeItem(PENDING_PAYMENT_KEY);
         clearCart();
 
         setSuccessOrderId(payment.orderId);
 setSuccessMessage(payment.message);
+        if (payment.method === "WALLET" && typeof balanceAfter === "number") {
+          setWalletPaid({ amount: payment.amount, balance: balanceAfter });
+        }
       } else {
         // Thanh toán thất bại vẫn lưu đơn để khách có thể thử lại.
         // Tạo key mới để backend không trả lại kết quả thất bại cũ.
@@ -295,7 +334,10 @@ setSuccessMessage(payment.message);
         );
 
         setErrorMessage(
-          payment.message || "Thanh toán thất bại. Vui lòng thử lại.",
+          payment.errorCode === "WALLET_INSUFFICIENT_BALANCE" &&
+            typeof balanceAfter === "number"
+            ? walletShortMessage(balanceAfter, payment.amount)
+            : payment.message || "Thanh toán thất bại. Vui lòng thử lại.",
         );
       }
     } catch (error) {
@@ -478,10 +520,45 @@ setSuccessMessage(payment.message);
             </div>
 
             {paymentMethod === "WALLET" && (
-              <p className="text-[11px] text-[#786354]">
-                Thanh toán trực tiếp bằng số dư ví của tài khoản.
-                Số dư mặc định của tài khoản mới là 200.000đ.
-              </p>
+              <div className="space-y-2 p-3 rounded-xl bg-white border border-[#EAE0D2] text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#4A3528]">Số dư ví hiện tại</span>
+                  <span
+                    data-testid="wallet-balance"
+                    className="font-black text-[#2B1B12]"
+                  >
+                    {typeof walletBalance === "number"
+                      ? formatPrice(walletBalance)
+                      : "Đang tải..."}
+                  </span>
+                </div>
+
+                {typeof walletBalance === "number" &&
+                  !successMessage &&
+                  (walletShort ? (
+                    <p
+                      data-testid="wallet-insufficient"
+                      className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 font-medium"
+                    >
+                      Không đủ tiền: đơn cần {formatPrice(totalAmount)}, còn thiếu{" "}
+                      {formatPrice(totalAmount - walletBalance)}. Vui lòng chọn Thẻ ngân hàng.
+                    </p>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#786354]">Sau khi thanh toán còn</span>
+                      <span
+                        data-testid="wallet-balance-after"
+                        className="font-bold text-[#C95E16]"
+                      >
+                        {formatPrice(walletBalance - totalAmount)}
+                      </span>
+                    </div>
+                  ))}
+
+                <p className="text-[11px] text-[#786354]">
+                  Ví mô phỏng: mỗi tài khoản mới được cấp sẵn 1.000.000đ, không nạp thêm được.
+                </p>
+              </div>
             )}
 
             {paymentMethod === "CARD" && (
@@ -627,6 +704,13 @@ setSuccessMessage(payment.message);
     <p className="text-sm text-[#4A3528]">
       Hình thức nhận món: {pickupNote}
     </p>
+
+    {walletPaid && (
+      <p data-testid="wallet-paid" className="text-sm text-[#4A3528]">
+        Đã trừ {formatPrice(walletPaid.amount)} từ ví. Số dư còn lại:{" "}
+        <span className="font-bold">{formatPrice(walletPaid.balance)}</span>
+      </p>
+    )}
   </div>
 )}
         </div>
@@ -647,7 +731,7 @@ setSuccessMessage(payment.message);
           {!successMessage && (
             <button
               type="button"
-              disabled={isSubmitting || items.length === 0}
+              disabled={isSubmitting || items.length === 0 || walletShort}
               onClick={handleConfirmOrder}
               data-testid="confirm-order-submit"
               className="flex-1 py-3 px-6 rounded-full bg-[#E06D20] hover:bg-[#C95E16] disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition"

@@ -1,7 +1,12 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import AccountMenu from "./AccountMenu";
 import { getStoredUser, getToken, saveSession } from "@/utils/auth";
+
+// Không gọi GET /auth/me thật trong test: số dư lấy từ phiên lưu sẵn.
+vi.mock("@/utils/auth-api", () => ({
+  refreshCurrentUser: vi.fn().mockResolvedValue(undefined),
+}));
 
 const user = { id: 1, email: "a@b.com", fullName: "Nguyễn Văn A", role: "CUSTOMER" as const };
 
@@ -31,6 +36,15 @@ describe("AccountMenu: nút Tài khoản (đăng nhập / đăng ký / đăng xu
     expect(screen.getByText("a@b.com")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /Đăng xuất/i })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /Đăng nhập/i })).not.toBeInTheDocument();
+  });
+
+  it("đã đăng nhập: hiện số dư ví mô phỏng trong menu", () => {
+    saveSession({ accessToken: "opaque-token", user: { ...user, walletBalance: 1000000 } });
+    render(<AccountMenu />);
+
+    fireEvent.click(screen.getByTestId("account-button"));
+
+    expect(screen.getByTestId("account-wallet-balance")).toHaveTextContent(/1\.000\.000/);
   });
 
   it("bấm Đăng xuất: xóa phiên và quay về trạng thái khách", () => {

@@ -8,6 +8,8 @@ export interface AuthUser {
   email: string;
   fullName: string;
   role: UserRole;
+  /** Số dư ví mô phỏng (VND). Phiên đăng nhập cũ có thể chưa có, web lấy lại qua GET /auth/me. */
+  walletBalance?: number;
 }
 
 /** Dữ liệu API trả về cho POST /auth/login và POST /auth/register */
@@ -83,6 +85,22 @@ export const saveSession = (session: AuthSession): void => {
     window.dispatchEvent(new Event(AUTH_EVENT));
   } catch (error) {
     console.error("Lỗi khi lưu phiên đăng nhập:", error);
+  }
+};
+
+/**
+ * Cập nhật thông tin người dùng đang lưu (ví dụ số dư ví sau khi thanh toán).
+ * Bỏ qua nếu đã đăng xuất hoặc dữ liệu thuộc tài khoản khác, để không khôi phục nhầm phiên.
+ */
+export const updateStoredUser = (patch: Partial<AuthUser>): void => {
+  if (typeof window === "undefined") return;
+  const current = getStoredUser();
+  if (!current || (patch.id !== undefined && patch.id !== current.id)) return;
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify({ ...current, ...patch }));
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  } catch (error) {
+    console.error("Lỗi khi cập nhật thông tin người dùng:", error);
   }
 };
 
