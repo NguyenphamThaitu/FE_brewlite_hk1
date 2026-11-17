@@ -1,4 +1,3 @@
-
 @startuml
 title SEQUENCE DIAGRAM - PLACE ORDER AND PAYMENT
 
@@ -13,7 +12,8 @@ autonumber
 == 1. Place Order ==
 
 Customer -> UI: Select products and click Checkout
-UI -> API: POST /api/orders\nJWT + OrderRequest
+activate UI
+UI -> API: POST /orders\nJWT + OrderRequest
 activate API
 
 API -> API: Verify JWT
@@ -34,7 +34,6 @@ else JWT valid
         API -> DB: Check products and stock
         activate DB
         DB --> API: Product information and stock
-        deactivate DB
 
         alt Insufficient stock
             API --> UI: 409 Insufficient stock
@@ -57,13 +56,11 @@ else JWT valid
             == 2. Payment Request ==
 
             Customer -> UI: Confirm payment
-            UI -> API: POST /api/payments\norderId + Idempotency-Key
+            UI -> API: POST /payments\norderId + Idempotency-Key
             API -> API: Verify JWT and validate payment request
 
             API -> DB: Find Idempotency-Key
-            activate DB
             DB --> API: Existing key or not found
-            deactivate DB
 
             alt Idempotency key already exists
                 API -> DB: Get previous payment result
@@ -75,6 +72,7 @@ else JWT valid
 
                 API -> DB: Save payment request (PENDING)
                 DB --> API: Payment request saved
+                deactivate DB
 
                 API -> PS: Create payment\norderId + amount + Idempotency-Key
                 activate PS
@@ -84,10 +82,12 @@ else JWT valid
 
                     group Update successful payment
                         API -> DB: BEGIN TRANSACTION
+                        activate DB
                         API -> DB: Update Payment = PAID
                         API -> DB: Update Order = CONFIRMED
                         API -> DB: COMMIT
                         DB --> API: Update successful
+                        deactivate DB
                     end
 
                     API --> UI: 200 OK\nPayment successful + order details
@@ -95,25 +95,27 @@ else JWT valid
 
                 else Payment failed
                     PS --> API: Payment Failed
+                    deactivate PS
 
                     group Handle failed payment
                         API -> DB: BEGIN TRANSACTION
+                        activate DB
                         API -> DB: Update Payment = FAILED
                         API -> DB: Cancel order or set retry status
                         API -> DB: Restore stock if order cancelled
                         API -> DB: COMMIT
                         DB --> API: Update successful
+                        deactivate DB
                     end
 
                     API --> UI: Payment failed + reason
+                    deactivate API
                     UI --> Customer: Display payment failure\nand retry option
+                    deactivate UI
                 end
-
-                deactivate PS
             end
         end
     end
 end
 
-deactivate API
 @enduml
