@@ -33,6 +33,7 @@ export class AuthService {
   }
 
   async me(id: number) {
-    return this.publicUser(await this.prisma.user.findUniqueOrThrow({ where: { id } }));
+    const u = await this.prisma.user.findUniqueOrThrow({ where: { id } });
+    return { ...this.publicUser(u), walletBalance: u.walletBalance };
   }
 }
