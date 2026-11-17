@@ -116,7 +116,10 @@ export class OrdersService {
   }
 
   async cancelMine(user: AuthUser, orderId: number) {
-    await this.findOneFor(user, orderId);
+    const order = await this.findOneFor(user, orderId);
+    // Chỉ chủ đơn được hủy (UC-09). Nhân viên xem được mọi đơn nhưng không hủy hộ khách,
+    // để lịch sử CUSTOMER_CANCEL luôn đúng là do khách thực hiện.
+    if (order.userId !== user.id) throw new ForbiddenException('Chỉ chủ đơn mới được hủy đơn hàng này');
     const ok = await this.prisma.$transaction((tx) => this.cancelPending(tx, orderId, user.id, 'CUSTOMER_CANCEL'));
     if (!ok) throw new ConflictException('Chỉ hủy được đơn chưa thanh toán');
     return this.findOneFor(user, orderId);
