@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../common/current-user';
-import { OrderStatus, Role } from '@prisma/client';
-import { CreateOrderDto, MyOrdersQueryDto, StaffOrdersQueryDto, UpdateStatusDto } from './orders.dto';
+import { Role } from '@prisma/client';
+import { CreateOrderDto, MyOrdersQueryDto, OrdersQueryDto, StaffOrdersQueryDto, UpdateStatusDto } from './orders.dto';
 import { OrdersService } from './orders.service';
 
 /** Màn hình quầy: nhân viên xem đơn đã thanh toán và lọc theo trạng thái (FR-33). Khách gọi nhận 403. */
@@ -21,7 +21,7 @@ export class OrdersController {
 
   /** Đặt đơn: frontend gửi danh sách món trong giỏ (giỏ hàng lưu ở client), API tự tính lại giá */
   @Post() create(@CurrentUser() u: AuthUser, @Body() dto: CreateOrderDto) { return this.orders.create(u.id, dto); }
-  @Get() list(@CurrentUser() u: AuthUser, @Query('status') status?: OrderStatus) { return this.orders.list(u, status); }
+  @Get() list(@CurrentUser() u: AuthUser, @Query() q: OrdersQueryDto) { return this.orders.list(u, q.status); }
   /** Lịch sử đơn của tôi, có phân trang (FR-30). Đặt trước ':id' để 'me' không bị hiểu là id */
   @Get('me') mine(@CurrentUser() u: AuthUser, @Query() q: MyOrdersQueryDto) { return this.orders.listMine(u.id, q.page, q.limit); }
   @Get(':id') detail(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.orders.findOneFor(u, id); }
