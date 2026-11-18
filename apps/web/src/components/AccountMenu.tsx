@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ChevronDown, LogIn, LogOut, User, UserPlus } from "lucide-react";
+import { ChevronDown, Coffee, LogIn, LogOut, User, UserPlus } from "lucide-react";
 import { clearSession, getStoredUser, isSessionActive, subscribeAuth, updateStoredUser } from "@/utils/auth";
 import { getMyWalletBalance } from "@/utils/orders-api";
 
@@ -25,16 +25,17 @@ export default function AccountMenu() {
     if (user && !isSessionActive()) clearSession();
   }, [user]);
 
-  // Mở menu thì lấy lại số dư ví mới nhất (vừa thanh toán xong hoặc phiên đăng nhập cũ chưa có số dư).
+  // Mở menu thì lấy lại số dư ví mới nhất (chỉ dành cho CUSTOMER).
   const userId = user?.id;
+  const userRole = user?.role;
   useEffect(() => {
-    if (!open || !userId) return;
+    if (!open || !userId || userRole === "STAFF") return;
     getMyWalletBalance()
       .then((me) => {
         if (typeof me.walletBalance === "number") updateStoredUser({ id: userId, walletBalance: me.walletBalance });
       })
       .catch(() => {}); // lỗi mạng: vẫn hiện số dư đang lưu
-  }, [open, userId]);
+  }, [open, userId, userRole]);
 
   // Đóng menu khi bấm ra ngoài hoặc nhấn Esc.
   useEffect(() => {
@@ -97,15 +98,35 @@ export default function AccountMenu() {
                 </p>
                 <p className="mt-0.5 text-sm font-extrabold text-[#2B1B12] truncate">{user.fullName}</p>
                 <p className="text-xs text-[#786354] truncate">{user.email}</p>
-                {typeof user.walletBalance === "number" && (
+                {user.role === "STAFF" ? (
                   <p className="mt-2 flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#786354]">Số dư ví</span>
-                    <span data-testid="account-wallet-balance" className="font-black text-[#E06D20]">
-                      {formatVnd(user.walletBalance)}
+                    <span className="font-bold text-[#786354]">Vai trò</span>
+                    <span className="rounded-full bg-[#F3E8DA] px-2.5 py-0.5 font-extrabold text-[#E06D20]">
+                      Nhân viên quầy
                     </span>
                   </p>
+                ) : (
+                  typeof user.walletBalance === "number" && (
+                    <p className="mt-2 flex items-center justify-between text-xs">
+                      <span className="font-bold text-[#786354]">Số dư ví</span>
+                      <span data-testid="account-wallet-balance" className="font-black text-[#E06D20]">
+                        {formatVnd(user.walletBalance)}
+                      </span>
+                    </p>
+                  )
                 )}
               </div>
+              {user.role === "STAFF" && (
+                <Link
+                  href="/staff"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className={`${itemClass} border-b border-[#EAE0D2] text-[#E06D20]`}
+                >
+                  <Coffee className="w-4 h-4" />
+                  Quầy pha chế (Staff)
+                </Link>
+              )}
               <button type="button" role="menuitem" onClick={handleLogout} className={itemClass}>
                 <LogOut className="w-4 h-4" />
                 Đăng xuất

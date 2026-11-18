@@ -97,7 +97,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const params = useSearchParams();
 
   // ?next=/duong-dan: quay lại sau khi đăng nhập (FR-18). ?reason=checkout: hiện lời nhắn khi đặt đơn.
-  const next = safeNextPath(params.get("next"));
+  const rawNext = params.get("next");
+  const next = safeNextPath(rawNext);
   const fromCheckout = params.get("reason") === "checkout";
   const query = params.toString();
   const suffix = query ? `?${query}` : "";
@@ -113,8 +114,13 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
   // Đã có phiên (vừa đăng nhập/đăng ký xong, hoặc mở trang khi đã đăng nhập) → chuyển đi
   useEffect(() => {
-    if (user) router.replace(next);
-  }, [user, next, router]);
+    if (!user) return;
+    if (user.role === "STAFF" && !rawNext) {
+      router.replace("/staff");
+    } else {
+      router.replace(next);
+    }
+  }, [user, next, rawNext, router]);
 
   const setValue = (key: keyof AuthFormValues) => (value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));

@@ -163,3 +163,42 @@ export function createVnpayPayment(
     body: JSON.stringify({ orderId }),
   });
 }
+
+/** Trạng thái đơn hiển thị ở màn hình nhân viên quầy (FR-33, FR-34) */
+export type StaffOrderStatus = "PAID" | "PREPARING" | "READY" | "COMPLETED";
+
+export interface StaffOrder {
+  id: number;
+  userId: number;
+  status: StaffOrderStatus;
+  totalAmount: number;
+  createdAt: string;
+  user?: { fullName: string };
+  items: {
+    id: number;
+    productName: string;
+    sizeName: string;
+    toppings: { id: number; name: string; price: number }[];
+    unitPrice: number;
+    quantity: number;
+    lineTotal: number;
+  }[];
+}
+
+/** Nhân viên xem danh sách đơn đã thanh toán và lọc theo trạng thái (FR-33) */
+export function getStaffOrders(status?: StaffOrderStatus) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request<StaffOrder[]>(`/staff/orders${query}`);
+}
+
+/** Nhân viên cập nhật trạng thái đơn tuần tự PAID → PREPARING → READY → COMPLETED (FR-34) */
+export function updateOrderStatus(
+  orderId: number,
+  status: "PREPARING" | "READY" | "COMPLETED",
+) {
+  return request<StaffOrder>(`/orders/${orderId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+

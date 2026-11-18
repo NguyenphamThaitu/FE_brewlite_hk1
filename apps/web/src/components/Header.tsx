@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Coffee, ShoppingBag, Sparkles, Clock } from "lucide-react";
 import AccountMenu from "@/components/AccountMenu";
 import { getEmptyCartSnapshot, getStoredCart, subscribeCart } from "@/utils/cart";
+import { getStoredUser, subscribeAuth } from "@/utils/auth";
 
 interface HeaderProps {
   onOpenCart: () => void;
-  activeTab?: "menu" | "about" | "history";
+  activeTab?: "menu" | "about" | "history" | "staff";
 }
 
 export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) {
@@ -17,6 +18,7 @@ export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) 
     getStoredCart,
     getEmptyCartSnapshot
   );
+  const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
   const cartCount = items.reduce((sum, item) => sum + item.qty, 0);
 
   return (
@@ -85,16 +87,30 @@ export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) 
           >
             Về BrewLite
           </Link>
-          <Link
-            href="/orders"
-            className={`px-4 py-1.5 rounded-full text-xs transition ${
-              activeTab === "history"
-                ? "bg-white text-[#E06D20] font-extrabold shadow-2xs"
-                : "font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60"
-            }`}
-          >
-            Lịch sử đơn hàng
-          </Link>
+          {user?.role !== "STAFF" && (
+            <Link
+              href="/orders"
+              className={`px-4 py-1.5 rounded-full text-xs transition ${
+                activeTab === "history"
+                  ? "bg-white text-[#E06D20] font-extrabold shadow-2xs"
+                  : "font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60"
+              }`}
+            >
+              Lịch sử đơn hàng
+            </Link>
+          )}
+          {(user?.role === "STAFF" || activeTab === "staff") && (
+            <Link
+              href="/staff"
+              className={`px-4 py-1.5 rounded-full text-xs transition ${
+                activeTab === "staff"
+                  ? "bg-white text-[#E06D20] font-extrabold shadow-2xs"
+                  : "font-bold text-[#4A3528] hover:text-[#E06D20] hover:bg-white/60"
+              }`}
+            >
+              Quầy pha chế
+            </Link>
+          )}
         </nav>
 
         {/* Actions */}
@@ -102,25 +118,27 @@ export default function Header({ onOpenCart, activeTab = "menu" }: HeaderProps) 
           {/* Tài khoản: Đăng nhập / Đăng ký / Đăng xuất */}
           <AccountMenu />
 
-          {/* Cart Trigger */}
-          <button
-            type="button"
-            onClick={onOpenCart}
-            className="relative flex items-center gap-2.5 pl-4 pr-3.5 py-2.5 min-h-[44px] rounded-full bg-[#E06D20] hover:bg-[#C85A12] text-white font-bold text-xs sm:text-sm shadow-md shadow-orange-950/20 transition active:scale-95"
-            aria-label="Xem giỏ hàng"
-          >
-            <ShoppingBag className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-            <span className="hidden sm:inline">Giỏ hàng</span>
-            <span
-              className={`min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-extrabold flex items-center justify-center transition ${
-                cartCount > 0
-                  ? "bg-[#2B1B12] text-white border border-white/50 shadow-xs"
-                  : "bg-white/25 text-white"
-              }`}
+          {/* Cart Trigger: Ẩn giỏ hàng đối với tài khoản Nhân viên quầy */}
+          {user?.role !== "STAFF" && (
+            <button
+              type="button"
+              onClick={onOpenCart}
+              className="relative flex items-center gap-2.5 pl-4 pr-3.5 py-2.5 min-h-[44px] rounded-full bg-[#E06D20] hover:bg-[#C85A12] text-white font-bold text-xs sm:text-sm shadow-md shadow-orange-950/20 transition active:scale-95"
+              aria-label="Xem giỏ hàng"
             >
-              {cartCount}
-            </span>
-          </button>
+              <ShoppingBag className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              <span className="hidden sm:inline">Giỏ hàng</span>
+              <span
+                className={`min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-extrabold flex items-center justify-center transition ${
+                  cartCount > 0
+                    ? "bg-[#2B1B12] text-white border border-white/50 shadow-xs"
+                    : "bg-white/25 text-white"
+                }`}
+              >
+                {cartCount}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </header>
