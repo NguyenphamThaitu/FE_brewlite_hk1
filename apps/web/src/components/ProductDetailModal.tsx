@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Product, ProductDetail, ProductSize, SizeOption, Topping } from "@/types/product";
 import { SIZE_OPTIONS, AVAILABLE_TOPPINGS } from "@/data/mock-products";
 import { fetchProductDetail } from "@/services/products";
 import { addToCart } from "@/utils/cart";
+import { getStoredUser, subscribeAuth } from "@/utils/auth";
 import { X, Plus, Minus, Check, ShoppingBag } from "lucide-react";
 
 interface ProductDetailModalProps {
@@ -18,6 +19,8 @@ export default function ProductDetailModal({
   onClose,
   onAddedSuccess,
 }: ProductDetailModalProps) {
+  const user = useSyncExternalStore(subscribeAuth, getStoredUser, () => null);
+  const isStaff = user?.role === "STAFF";
   const [selectedSize, setSelectedSize] = useState<ProductSize>("S");
   const [selectedToppings, setSelectedToppings] = useState<Topping[]>([]);
   const [note, setNote] = useState<string>("");
@@ -297,13 +300,19 @@ export default function ProductDetailModal({
           {/* Action Button */}
           <button
             type="button"
-            disabled={isAdding || product.available === false}
+            disabled={isAdding || product.available === false || isStaff}
             onClick={handleAddToCart}
             className="w-full sm:flex-1 py-3.5 px-6 min-h-[48px] rounded-full bg-[#E06D20] hover:bg-[#C95E16] text-white font-bold shadow-md shadow-orange-950/15 flex items-center justify-between transition active:scale-95 disabled:opacity-50"
           >
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-5 h-5" />
-              <span>{isAdding ? "Đang thêm..." : "Thêm vào giỏ hàng"}</span>
+              <span>
+                {isStaff
+                  ? "Chế độ nhân viên (Chỉ xem món)"
+                  : isAdding
+                    ? "Đang thêm..."
+                    : "Thêm vào giỏ hàng"}
+              </span>
             </div>
             <span
               data-testid="modal-total-price"
